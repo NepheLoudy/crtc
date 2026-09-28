@@ -1,0 +1,19 @@
+{
+  "name": "dubov-tournament",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "杜博夫系统瑞士轮（6轮BO1）+ 8强车轮战淘汰赛（BO3）赛事管理系统",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/",
+    "sim": "node test/simulation.mjs"
+  },
+  "dependencies": {
+    "@fontsource/chakra-petch": "^5.2.5",
+    "@fontsource/jetbrains-mono": "^5.2.5",
+    "@fontsource/noto-sans-sc": "^5.2.5",
+    "express": "^4.21.2"
+  }
+}
