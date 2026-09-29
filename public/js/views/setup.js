@@ -200,9 +200,9 @@ function bindRoster(el, d, started) {
     }
     if (t.dataset.withdraw) {
       const name = d.state.teams.find((x) => x.id === t.dataset.withdraw)?.name || '';
-      if (!confirm(`确认「${name}」弃赛？\n\n条款 5.3.4：本轮进行中弃赛，本轮对局判负，此后所有排序删除该队。`)) return;
+      if (!confirm(`确认「${name}」退赛？\n\n· 瑞士轮：本轮与其对局不自动判定，需你手动录入结果（条款 5.3.4：进行中弃赛应判负）；后续轮次自动剔除。\n· 淘汰赛：防守方退赛由进攻队列队首继承防线，进攻方退赛该场转人工结算。`)) return;
       await api('POST', `/teams/${t.dataset.withdraw}/withdraw`, { midRound: true });
-      toast(`「${name}」已标记弃赛`);
+      toast(`「${name}」已标记退赛`);
       return;
     }
     if (t.dataset.reinstate) {

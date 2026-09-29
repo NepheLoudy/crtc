@@ -170,3 +170,100 @@ test('瑞士轮未打完不允许进入淘汰赛；不足 8 队报错', () => {
   });
   assert.throws(() => initKnockout(s), /瑞士轮未完成/);
 });
+
+// ---------- 退赛与继承 ----------
+import { withdrawFromKnockout, settleWalkover } from '../lib/knockout.js';
+
+test('退赛继承：防守方弃赛 → 队首接任防线，本场取消不结算', () => {
+  const s = mkSwissDone();
+  const k = initKnockout(s);
+  assignAttackers(s, ASSIGN);
+  // B 组：防守 t7 / 队列 [t3,t2,t1]，current = t7 vs t3
+  withdrawFromKnockout(s, 't7');
+  assert.equal(k.groups.B.defender, 't3');      // 队首继承防守
+  assert.equal(k.pts.t3, 2);                    // 积分保持自身值
+  assert.ok(k.eliminated.some((e) => e.id === 't7'));
+  assert.equal(k.current.B.defender, 't3');     // 已开启下一场
+  assert.equal(k.current.B.attacker, 't2');
+  assert.equal(k.phase, 'battle');
+});
+
+test('进攻方弃赛 → 本场待人工结算；补判后防守 +0.5，弃赛者不回队列', () => {
+  const s = mkSwissDone();
+  const k = initKnockout(s);
+  assignAttackers(s, ASSIGN);
+  withdrawFromKnockout(s, 't6'); // A 组 current 的进攻方
+  assert.equal(k.current.A.attackerWithdrawn, true);
+  assert.equal(k.pts.t6, 2);                     // 引擎不自动扣分
+  const before = k.current.A.games.length;
+  assert.equal(before, 0);
+  settleWalkover(s, 'A');                        // 人工补判防守方胜（2:0）
+  assert.equal(k.pts.t8, 3.5);
+  assert.equal(k.matchWins.t8, 1);
+  assert.ok(!k.groups.A.queue.includes('t6'));   // 弃赛者不回队列
+  assert.equal(k.current.A.attacker, 't5');
+  assert.throws(() => settleWalkover(s, 'A'), /无需补判/); // 新一场不可重复补判
+  // 逐局手动录入路径也可用（录到防守 2 胜结算，弃赛进攻方扣分但已出局不受影响）
+  playGame(s, 'A', 'defender');
+  const r = playGame(s, 'A', 'defender');
+  assert.equal(r.matchOver, true);
+  assert.ok(!k.groups.A.queue.includes('t6'));
+});
+
+test('一组全员退赛 → 另一组打穿队列进决赛，决赛退赛由对手夺冠', () => {
+  const s = mkSwissDone();
+  const k = initKnockout(s);
+  assignAttackers(s, ASSIGN);
+  // B 组逐个退赛：t7(守)→原进攻方t3继承；t3(守)→t2继承；t1(current进攻)弃赛；t2(守)无人继承
+  withdrawFromKnockout(s, 't7');
+  assert.equal(k.groups.B.defender, 't3');
+  withdrawFromKnockout(s, 't3');
+  assert.equal(k.groups.B.defender, 't2');
+  withdrawFromKnockout(s, 't1'); // current 进攻方弃赛 → 待人工结算
+  assert.equal(k.current.B.attackerWithdrawn, true);
+  withdrawFromKnockout(s, 't2'); // 最后的防守方弃赛 → B 组空缺
+  assert.equal(k.groups.B.defender, null);
+  assert.equal(k.current.B, null);
+  // A 组正常打穿队列（每次退赛/淘汰都即时收敛检查）
+  let guard = 0;
+  while (k.current.A && guard++ < 50) { playGame(s, 'A', 'defender'); playGame(s, 'A', 'defender'); }
+  // alive 只剩 A 组防守方 t8 与队列中尚未打完的最后一支 → 决赛
+  assert.equal(k.phase, 'final');
+  assert.equal(k.final.players[0], 't8');
+  const other = k.final.players[1];
+  withdrawFromKnockout(s, other); // 决赛退赛 → t8 夺冠
+  assert.equal(k.phase, 'done');
+  assert.equal(k.champion, 't8');
+  assert.equal(k.runnerUp, other);
+});
+
+test('志愿分配阶段退赛：防守方重排、初始分重置', () => {
+  const s = mkSwissDone();
+  const k = initKnockout(s);
+  assert.equal(k.groups.A.defender, 't8');
+  withdrawFromKnockout(s, 't8');
+  assert.equal(k.order[0], 't7');
+  assert.equal(k.groups.A.defender, 't7');
+  assert.equal(k.groups.B.defender, 't6');
+  assert.equal(k.phase, 'assign');
+  assert.equal(k.pts.t7, 3);
+  assert.equal(k.pts.t6, 3);
+});
+
+test('决赛选手退赛 → 对手夺冠', () => {
+  const s = mkSwissDone();
+  const k = initKnockout(s);
+  assignAttackers(s, ASSIGN);
+  let guard = 0;
+  while (k.phase === 'battle' && guard++ < 300) {
+    const g = k.current.A ? 'A' : 'B';
+    playGame(s, g, 'defender');
+    playGame(s, g, 'defender');
+  }
+  assert.equal(k.phase, 'final');
+  const [a, b] = k.final.players;
+  withdrawFromKnockout(s, b);
+  assert.equal(k.phase, 'done');
+  assert.equal(k.champion, a);
+  assert.equal(k.runnerUp, b);
+});

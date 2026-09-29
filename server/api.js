@@ -9,6 +9,7 @@ import {
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
+  withdrawFromKnockout, settleWalkover,
 } from '../lib/knockout.js';
 
 const sseClients = new Set();
@@ -134,8 +135,17 @@ export function createApiRouter() {
     removeTeam(store.get(), req.params.id);
   }));
 
-  api.post('/teams/:id/withdraw', wrap('队伍弃赛', (req) => {
-    withdrawTeam(store.get(), req.params.id, { midRound: req.body?.midRound !== false });
+  // 退赛统一入口：瑞士轮阶段走 engine（本轮场次转人工结算），
+  // 淘汰赛阶段走继承算法（防守方由队列队首继承）
+  api.post('/teams/:id/withdraw', wrap('队伍退赛', (req) => {
+    const state = store.get();
+    if (!state) throw new Error('尚未创建赛事');
+    const k = state.knockout;
+    if (k && ['assign', 'battle', 'final'].includes(k.phase)) {
+      withdrawFromKnockout(state, req.params.id);
+    } else {
+      withdrawTeam(state, req.params.id, { midRound: req.body?.midRound !== false });
+    }
   }));
 
   api.post('/teams/:id/reinstate', wrap('队伍恢复', (req) => {
@@ -170,6 +180,10 @@ export function createApiRouter() {
 
   api.post('/knockout/game', wrap('录入对局', (req) => {
     playGame(store.get(), req.body?.group, req.body?.outcome);
+  }));
+
+  api.post('/knockout/walkover', wrap('补判弃赛场', (req) => {
+    settleWalkover(store.get(), req.body?.group);
   }));
 
   api.post('/knockout/final', wrap('录入决赛对局', (req) => {

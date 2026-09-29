@@ -163,11 +163,14 @@ export function consoleHtml(d, k, g, ro = false) {
   const nm = (id) => teamName(d, id);
   const eliminatedIds = new Set(k.eliminated.map((e) => e.id));
   const aliveQueue = grp.queue.filter((id) => !eliminatedIds.has(id));
+  // 退赛小按钮（ro 只读模式不渲染）
+  const kick = (id) => ro ? '' :
+    `<button class="btn btn-sm btn-danger" data-kick="${id}" title="退赛：触发继承算法">✕</button>`;
 
   const duel = cur ? `
     <div class="duel">
       <div class="fighter def">
-        <span class="role">◆ 防守方</span>
+        <span class="role">◆ 防守方 ${ro ? '' : kick(cur.defender)}</span>
         <span class="nm">${esc(nm(cur.defender))}</span>
         <span class="pts">${fmtPts(k.pts[cur.defender])}<small> 分</small></span>
       </div>
@@ -177,11 +180,16 @@ export function consoleHtml(d, k, g, ro = false) {
         <span class="match-no dim">BO3 · 先胜2局</span>
       </div>
       <div class="fighter atk">
-        <span class="role">▲ 进攻方</span>
+        <span class="role">▲ 进攻方 ${cur.attackerWithdrawn ? '<span class="tag tag-out">已退赛</span>' : ro ? '' : kick(cur.attacker)}</span>
         <span class="nm">${esc(nm(cur.attacker))}</span>
         <span class="pts">${fmtPts(k.pts[cur.attacker])}<small> 分</small></span>
       </div>
     </div>
+    ${cur.attackerWithdrawn ? `
+    <div class="banner red">该场进攻方已弃赛——可逐局手动录入剩余局分，或人工补判防守方获胜（2:0，弃赛者不扣分不回队列）。</div>
+    ${ro ? '' : `<div class="flex" style="justify-content:center;margin-bottom:8px">
+      <button class="btn btn-danger btn-sm" data-walkover="${g}">人工补判：防守方胜（2:0）</button>
+    </div>`}` : ''}
     <div class="flex" style="justify-content:center">
       ${ro ? '' : `
       <span class="seg" data-group="${g}">
@@ -190,10 +198,10 @@ export function consoleHtml(d, k, g, ro = false) {
         <button data-outcome="attacker"><span class="cy">进攻胜 ▲</span></button>
       </span>`}
     </div>`
-    : `<div class="empty">${g} 组进攻队列已空 —— ${esc(nm(grp.defender))} 驻守待命</div>`;
+    : `<div class="empty">${grp.defender ? `${g} 组进攻队列已空 —— ${esc(nm(grp.defender))} 驻守待命` : `${g} 组防守空缺`}</div>`;
 
   const queue = aliveQueue.map((id) => `
-    <div class="q-item"><span class="grow">${esc(nm(id))}</span><span class="q-pts">${fmtPts(k.pts[id])}</span></div>`).join('');
+    <div class="q-item"><span class="grow">${esc(nm(id))}</span><span class="q-pts">${fmtPts(k.pts[id])}</span>${ro ? '' : kick(id)}</div>`).join('');
 
   return `
     <div class="panel corner">
@@ -208,6 +216,8 @@ export function consoleHtml(d, k, g, ro = false) {
 
 // 决赛卡片（board 大屏复用；ro=true 只读）
 export function finalHtml(d, k, ro = false) {
+  const kickFinal = (id) => ro ? '' :
+    `<button class="btn btn-sm btn-danger" data-kick="${id}" title="决赛退赛：对手夺冠">✕</button>`;
   const [a, b] = k.final.players;
   const aWins = k.final.games.filter((x) => x === 'a').length;
   const bWins = k.final.games.filter((x) => x === 'b').length;
@@ -216,7 +226,7 @@ export function finalHtml(d, k, ro = false) {
       <div class="phead"><h2>决赛</h2><span class="sub">GRAND FINAL · BO3</span></div>
       <div class="duel">
         <div class="fighter def">
-          <span class="role">◆ ${esc(teamName(d, a))}</span>
+          <span class="role">◆ ${esc(teamName(d, a))} ${ro ? '' : kickFinal(a)}</span>
           <span class="nm">局分 ${aWins}</span>
           <span class="pts">${fmtPts(k.pts[a])}<small> 积分</small></span>
         </div>
@@ -226,7 +236,7 @@ export function finalHtml(d, k, ro = false) {
           <span class="match-no dim">先胜 2 局</span>
         </div>
         <div class="fighter atk">
-          <span class="role">▲ ${esc(teamName(d, b))}</span>
+          <span class="role">▲ ${esc(teamName(d, b))} ${ro ? '' : kickFinal(b)}</span>
           <span class="nm">局分 ${bWins}</span>
           <span class="pts">${fmtPts(k.pts[b])}<small> 积分</small></span>
         </div>
@@ -250,12 +260,14 @@ function logLine(lg) {
 
 function doneHtml(d, k) {
   const ranking = d.knockoutRanking || [];
-  const [p1, p2, p3] = ranking;
-  const podium = p3 ? `
+  const p1 = ranking.find((r) => r.finalRank === 1);
+  const p2 = ranking.find((r) => r.finalRank === 2);
+  const p3 = ranking.find((r) => r.finalRank === 3);
+  const podium = p1 ? `
     <div class="podium">
-      <div class="pod p2"><div class="medal">亚军 · RUNNER-UP</div><div class="nm">${esc(p2.name)}</div><div class="meta">车轮胜 ${p2.matchWins} · 积分 ${fmtPts(p2.pts)}</div></div>
+      ${p2 ? `<div class="pod p2"><div class="medal">亚军 · RUNNER-UP</div><div class="nm">${esc(p2.name)}</div><div class="meta">车轮胜 ${p2.matchWins} · 积分 ${fmtPts(p2.pts)}</div></div>` : '<div></div>'}
       <div class="pod p1"><div class="medal">★ 冠军 · CHAMPION ★</div><div class="nm">${esc(p1.name)}</div><div class="meta">车轮胜 ${p1.matchWins} · 积分 ${fmtPts(p1.pts)}</div></div>
-      <div class="pod p3"><div class="medal">季军 · THIRD</div><div class="nm">${esc(p3.name)}</div><div class="meta">车轮胜 ${p3.matchWins} · 积分 ${fmtPts(p3.pts)}</div></div>
+      ${p3 ? `<div class="pod p3"><div class="medal">季军 · THIRD</div><div class="nm">${esc(p3.name)}</div><div class="meta">车轮胜 ${p3.matchWins} · 积分 ${fmtPts(p3.pts)}</div></div>` : '<div></div>'}
     </div>` : '';
   const rows = ranking.map((r) => `
     <tr class="row-anim" style="animation-delay:${r.finalRank * 30}ms">
@@ -293,7 +305,16 @@ function bindBattle(el, d) {
     const btn = e.target.closest('button');
     if (!btn) return;
     const seg = btn.closest('.seg');
-    if (seg?.dataset.group) {
+    if (btn.dataset.kick) {
+      const name = teamName(d, btn.dataset.kick);
+      if (!confirm(`确认「${name}」退赛？\n\n防守方退赛：本场取消，进攻队列队首继承防线；进攻方退赛：本场转人工结算；决赛退赛：对手夺冠。`)) return;
+      api('POST', `/teams/${btn.dataset.kick}/withdraw`, { midRound: true })
+        .then(() => toast(`「${name}」已退赛，继承已处理`))
+        .catch(() => {});
+    } else if (btn.dataset.walkover) {
+      if (!confirm('人工补判该场防守方获胜（2:0）？弃赛者不扣分、不回队列。')) return;
+      api('POST', '/knockout/walkover', { group: btn.dataset.walkover }).catch(() => {});
+    } else if (seg?.dataset.group) {
       api('POST', '/knockout/game', { group: seg.dataset.group, outcome: btn.dataset.outcome }).catch(() => {});
     } else if (seg?.dataset.final) {
       api('POST', '/knockout/final', { outcome: btn.dataset.outcome }).catch(() => {});

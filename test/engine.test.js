@@ -155,16 +155,17 @@ test('regenerate 替换未确认轮次', () => {
   assert.equal(again.committed, false);
 });
 
-test('5.3.4 轮中弃赛：自动判负、保留该轮ARO项、后续不再参与', () => {
+test('5.3.4 轮中弃赛：不自动判负、标记待人工结算，录入后正常结算', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
   generateRound(s);
-  withdrawTeam(s, 't4');
+  withdrawTeam(s, 't4'); // 丁弃赛
   const p = pairWith(s.swiss.rounds[0], 't4');
-  // 丁 ARO 70 最低 → 是该场 p.a；自动判负即对手(b)胜
+  // 引擎不自动判定结果——由操作员手动录入（条款 5.3.4 应判负，但由人决定）
   assert.equal(p.a, 't4');
-  assert.equal(p.result, 'b');
-  assert.equal(p.autoLoss, true);
-  // 另一场录入后确认
+  assert.equal(p.result, null);
+  assert.equal(p.oppWithdrawn, true);
+  // 人工录入：丁判负（对手甲胜，p.a=丁 → 判 'b'）
+  submitResults(s, [{ board: p.board, result: 'b' }]);
   const other = s.swiss.rounds[0].pairings.find((x) => x !== p);
   submitResults(s, [{ board: other.board, result: 'draw' }]);
   commitRound(s);
@@ -176,6 +177,20 @@ test('5.3.4 轮中弃赛：自动判负、保留该轮ARO项、后续不再参�
   const r2 = s.swiss.rounds[1];
   assert.ok(r2.pairings.every((q) => q.a !== 't4' && q.b !== 't4'));
   assert.equal(r2.bye, 't2'); // 3分组甲(70)奇 → 上调丙(90) → 乙(80)在末组轮空
+});
+
+test('轮空者退赛：本轮轮空取消，其余对局不受影响', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70], ['戊', 60]]);
+  const r1 = generateRound(s);
+  assert.equal(r1.bye, 't5');
+  withdrawTeam(s, 't5');
+  assert.equal(r1.bye, null);        // 轮空取消（不产生需结算的结果）
+  assert.equal(r1.byeTerm, null);
+  assert.equal(r1.pairings.length, 2);
+  playRound(s, { t1: 'win', t2: 'win' });
+  const table = computeTable(s, 1);
+  assert.equal(table.get('t5').score, 0); // 无轮空分
+  assert.equal(table.get('t5').withdrawn, true);
 });
 
 test('排名排序：积分 → ARO → 初始分', () => {
