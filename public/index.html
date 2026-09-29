@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>杜博夫赛事系统</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><polygon points='4,4 28,4 28,20 16,30 4,20' fill='%23ffb454'/></svg>">
+<link rel="stylesheet" href="/vendor/fontsource/chakra-petch/500.css">
+<link rel="stylesheet" href="/vendor/fontsource/chakra-petch/600.css">
+<link rel="stylesheet" href="/vendor/fontsource/chakra-petch/700.css">
+<link rel="stylesheet" href="/vendor/fontsource/jetbrains-mono/400.css">
+<link rel="stylesheet" href="/vendor/fontsource/jetbrains-mono/600.css">
+<link rel="stylesheet" href="/vendor/fontsource/noto-sans-sc/400.css">
+<link rel="stylesheet" href="/vendor/fontsource/noto-sans-sc/500.css">
+<link rel="stylesheet" href="/vendor/fontsource/noto-sans-sc/700.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="scanlines" aria-hidden="true"></div>
+
+<header class="cmdbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><polygon points="4,4 28,4 28,20 16,30 4,20" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="16" cy="14" r="4" fill="currentColor"/></svg>
+    <div class="brand-text">
+      <strong id="brand-name">DUBOV // 赛事系统</strong>
+      <span id="brand-sub">STANDINGS · PAIRINGS · LIVE</span>
+    </div>
+  </div>
+  <nav class="stepper" id="stepper" aria-label="赛程阶段"></nav>
+  <div class="cmdbar-actions">
+    <button class="btn btn-ghost btn-sm" id="btn-undo" title="撤销上一步操作" hidden>↩ 撤销</button>
+    <div class="conn" id="conn"><i class="led led-off"></i><span>离线</span></div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="rail" id="rail">
+    <a href="#/setup" data-route="setup"><i>01</i>赛前设置</a>
+    <a href="#/swiss" data-route="swiss"><i>02</i>瑞士轮</a>
+    <a href="#/knockout" data-route="knockout"><i>03</i>淘汰赛</a>
+    <a href="#/board" data-route="board" class="board-link"><i>04</i>排名大屏</a>
+    <div class="rail-foot">
+      <div class="rail-rule"></div>
+      <p>杜博夫系统<br>6轮瑞士轮 BO1<br>8强车轮战 BO3</p>
+    </div>
+  </nav>
+  <main class="view" id="view" tabindex="-1"></main>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>
