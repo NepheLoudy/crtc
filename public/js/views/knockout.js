@@ -163,9 +163,9 @@ export function consoleHtml(d, k, g, ro = false) {
   const nm = (id) => teamName(d, id);
   const eliminatedIds = new Set(k.eliminated.map((e) => e.id));
   const aliveQueue = grp.queue.filter((id) => !eliminatedIds.has(id));
-  // 退赛小按钮（ro 只读模式不渲染）
+  // 退赛小按钮（ro 只读模式不渲染）：标记后规则自动推进
   const kick = (id) => ro ? '' :
-    `<button class="btn btn-sm btn-danger" data-kick="${id}" title="退赛：触发继承算法">✕</button>`;
+    `<button class="btn btn-sm btn-danger" data-kick="${id}" title="标记退赛：当前场次判负并正常结算">✕</button>`;
 
   const duel = cur ? `
     <div class="duel">
@@ -180,16 +180,11 @@ export function consoleHtml(d, k, g, ro = false) {
         <span class="match-no dim">BO3 · 先胜2局</span>
       </div>
       <div class="fighter atk">
-        <span class="role">▲ 进攻方 ${cur.attackerWithdrawn ? '<span class="tag tag-out">已退赛</span>' : ro ? '' : kick(cur.attacker)}</span>
+        <span class="role">▲ 进攻方 ${ro ? '' : kick(cur.attacker)}</span>
         <span class="nm">${esc(nm(cur.attacker))}</span>
         <span class="pts">${fmtPts(k.pts[cur.attacker])}<small> 分</small></span>
       </div>
     </div>
-    ${cur.attackerWithdrawn ? `
-    <div class="banner red">该场进攻方已弃赛——可逐局手动录入剩余局分，或人工补判防守方获胜（2:0，弃赛者不扣分不回队列）。</div>
-    ${ro ? '' : `<div class="flex" style="justify-content:center;margin-bottom:8px">
-      <button class="btn btn-danger btn-sm" data-walkover="${g}">人工补判：防守方胜（2:0）</button>
-    </div>`}` : ''}
     <div class="flex" style="justify-content:center">
       ${ro ? '' : `
       <span class="seg" data-group="${g}">
@@ -307,13 +302,10 @@ function bindBattle(el, d) {
     const seg = btn.closest('.seg');
     if (btn.dataset.kick) {
       const name = teamName(d, btn.dataset.kick);
-      if (!confirm(`确认「${name}」退赛？\n\n防守方退赛：本场取消，进攻队列队首继承防线；进攻方退赛：本场转人工结算；决赛退赛：对手夺冠。`)) return;
+      if (!confirm(`确认「${name}」退赛？\n\n规则自动推进：正在进行的场次直接判负并正常结算（防守方退赛则进攻方破防接任），退赛者不再回队列；决赛退赛则对手夺冠。`)) return;
       api('POST', `/teams/${btn.dataset.kick}/withdraw`, { midRound: true })
-        .then(() => toast(`「${name}」已退赛，继承已处理`))
+        .then(() => toast(`「${name}」已退赛，判负结算完成`))
         .catch(() => {});
-    } else if (btn.dataset.walkover) {
-      if (!confirm('人工补判该场防守方获胜（2:0）？弃赛者不扣分、不回队列。')) return;
-      api('POST', '/knockout/walkover', { group: btn.dataset.walkover }).catch(() => {});
     } else if (seg?.dataset.group) {
       api('POST', '/knockout/game', { group: seg.dataset.group, outcome: btn.dataset.outcome }).catch(() => {});
     } else if (seg?.dataset.final) {

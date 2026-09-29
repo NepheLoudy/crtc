@@ -162,8 +162,8 @@ test('5.3.4 轮中弃赛：不自动判负、标记待人工结算，录入后�
   const p = pairWith(s.swiss.rounds[0], 't4');
   // 引擎不自动判定结果——由操作员手动录入（条款 5.3.4 应判负，但由人决定）
   assert.equal(p.a, 't4');
-  assert.equal(p.result, null);
-  assert.equal(p.oppWithdrawn, true);
+  assert.equal(p.result, 'b');   // 对手甲胜（5.3.4 判负自动推进）
+  assert.equal(p.walkover, true);
   // 人工录入：丁判负（对手甲胜，p.a=丁 → 判 'b'）
   submitResults(s, [{ board: p.board, result: 'b' }]);
   const other = s.swiss.rounds[0].pairings.find((x) => x !== p);

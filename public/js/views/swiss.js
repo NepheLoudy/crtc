@@ -104,7 +104,7 @@ function pairRow(d, p, promoted, demoted, i) {
         <span class="nm">${demoted.has(p.b) ? '<span class="tag tag-down">下调</span> ' : ''}${promoted.has(p.b) ? '<span class="tag tag-up">上调</span> ' : ''}${esc(teamName(d, p.b))}</span>
         <span class="aro">ARO ${fmtAro(p.aroB)}</span>
       </div>
-      <div class="flags">${p.oppWithdrawn ? '<span class="tag tag-out">对方弃赛 · 待人工结算</span>' : ''}</div>
+      <div class="flags">${p.walkover ? '<span class="tag tag-out">弃赛判负</span>' : ''}</div>
     </div>`;
 }
 
@@ -148,7 +148,7 @@ function historyHtml(d) {
       return `<tr>
         <td class="num dim">${String(p.board).padStart(2, '0')}</td>
         <td>${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}</td>
-        <td class="num ${p.result === 'a' ? 'amber' : p.result === 'b' ? 'cy' : 'dim'}">${res}${p.oppWithdrawn ? ' <span class="tag tag-out">弃赛</span>' : ''}</td>
+        <td class="num ${p.result === 'a' ? 'amber' : p.result === 'b' ? 'cy' : 'dim'}">${res}${p.walkover ? ' <span class="tag tag-out">弃赛判负</span>' : ''}</td>
         <td>${esc(teamName(d, p.b))}${promoted.has(p.b) ? ' <span class="tag tag-up">上调</span>' : ''}</td>
       </tr>`;
     }).join('');

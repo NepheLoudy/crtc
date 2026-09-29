@@ -9,7 +9,7 @@ import {
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
-  withdrawFromKnockout, settleWalkover,
+  withdrawFromKnockout,
 } from '../lib/knockout.js';
 
 const sseClients = new Set();
@@ -180,10 +180,6 @@ export function createApiRouter() {
 
   api.post('/knockout/game', wrap('录入对局', (req) => {
     playGame(store.get(), req.body?.group, req.body?.outcome);
-  }));
-
-  api.post('/knockout/walkover', wrap('补判弃赛场', (req) => {
-    settleWalkover(store.get(), req.body?.group);
   }));
 
   api.post('/knockout/final', wrap('录入决赛对局', (req) => {
