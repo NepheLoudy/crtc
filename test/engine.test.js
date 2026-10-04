@@ -203,3 +203,22 @@ test('排名排序：积分 → ARO → 初始分', () => {
   assert.equal(list[2].teamId, 't2');
   assert.equal(list[3].teamId, 't4');
 });
+
+test('轮空与重复对位同轮：消解重跑级联不吞轮空者（9队回归）', () => {
+  // R1：4场+1轮空 → R2 score1 组含两对 R1 重复对位 → 5.3.5 移空该组并重跑级联
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70], ['戊', 60], ['己', 50], ['庚', 40], ['辛', 30], ['壬', 20]]);
+  const r1 = generateRound(s);
+  assert.equal(r1.bye, 't9'); // ARO 最低者轮空
+  // 仅乙丙胜，其余平 → 积分组 2/4/2：score1 = {甲,辛,戊,丁}，含 (甲,辛)(戊,丁) 两对 R1 重复
+  playRound(s, { t2: 'win', t3: 'win', t5: 'draw' });
+  const r2 = generateRound(s);
+  // 关键不变量：配对完备（8人配对 + 1轮空 = 9）
+  const alive = s.teams.filter((t) => !t.withdrawn).length;
+  assert.equal(r2.pairings.length * 2 + (r2.bye ? 1 : 0), alive);
+  for (const p of r2.pairings) {
+    assert.ok(p.a && p.b && p.a !== p.b, '对阵双方必须有效');
+  }
+  // 继续跑完不崩
+  playRound(s, {});
+  generateRound(s);
+});

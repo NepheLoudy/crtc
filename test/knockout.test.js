@@ -261,3 +261,13 @@ test('决赛选手退赛 → 对手夺冠', () => {
   assert.equal(k.champion, a);
   assert.equal(k.runnerUp, b);
 });
+
+test('进攻方在分配阶段全部退赛 → 编组后直接进入决赛', () => {
+  const s = mkSwissDone();
+  const k = initKnockout(s);
+  for (const id of k.order.slice(2)) withdrawFromKnockout(s, id);
+  assert.equal(k.order.length, 2);
+  assignAttackers(s, {}); // 无进攻方可编
+  assert.equal(k.phase, 'final'); // 不死锁：编组完成即收敛
+  assert.deepEqual(k.final.players, ['t8', 't7']);
+});

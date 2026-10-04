@@ -40,9 +40,10 @@ function view() {
   };
 }
 
-function wrap(label, fn) {
+function wrap(label, fn, { needState = true } = {}) {
   return (req, res) => {
     try {
+      if (needState && !store.get()) throw new Error('尚未创建赛事，请先在赛前设置中建赛');
       store.snapshot(label);
       const result = fn(req) ?? {};
       store.save();
@@ -83,11 +84,11 @@ export function createApiRouter() {
     const { name, totalRounds, settings, teams } = req.body || {};
     const state = newTournament({ name, totalRounds, settings, teams });
     store.set(state);
-  }));
+  }, { needState: false }));
 
   api.post('/tournament/reset', wrap('销毁赛事', () => {
     store.set(null);
-  }));
+  }, { needState: false }));
 
   api.put('/settings', wrap('修改设置', (req) => {
     const state = store.get();
@@ -135,13 +136,13 @@ export function createApiRouter() {
     removeTeam(store.get(), req.params.id);
   }));
 
-  // 退赛统一入口：瑞士轮阶段走 engine（本轮场次转人工结算），
-  // 淘汰赛阶段走继承算法（防守方由队列队首继承）
+  // 退赛统一入口：瑞士轮阶段走 engine（本轮判负推进），
+  // 淘汰赛阶段走判负推进（含 done 拒绝），结束后的赛事不允许改动名册
   api.post('/teams/:id/withdraw', wrap('队伍退赛', (req) => {
     const state = store.get();
     if (!state) throw new Error('尚未创建赛事');
     const k = state.knockout;
-    if (k && ['assign', 'battle', 'final'].includes(k.phase)) {
+    if (k && ['assign', 'battle', 'final', 'done'].includes(k.phase)) {
       withdrawFromKnockout(state, req.params.id);
     } else {
       withdrawTeam(state, req.params.id, { midRound: req.body?.midRound !== false });
