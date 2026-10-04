@@ -1,6 +1,7 @@
-// 视图：赛前设置 —— 建赛向导 / 队伍管理 / 规则参数
+// 视图：赛前设置 —— 建赛向导 / 队伍管理 / 规则参数（管理员专属）+ 审计日志
 import { api } from '../api.js';
-import { esc, $ } from '../ui.js';
+import { can } from '../main.js';
+import { esc, fmtTime, $ } from '../ui.js';
 
 const SAMPLE = [
   ['量子波动', 92], ['光棱坦克', 88], ['天启装甲', 85], ['基洛夫空艇', 82],
@@ -11,6 +12,18 @@ const SAMPLE = [
 let editingId = null;
 
 export function renderSetup(el, d) {
+  if (!can('admin')) {
+    el.innerHTML = `
+      <div class="panel corner" style="max-width:640px;margin:6vh auto 0">
+        <div class="phead"><h2>赛前设置</h2><span class="sub">ADMIN ONLY</span></div>
+        <div class="empty">本页为管理员专属（建赛 / 名册 / 规则 / 审计）。<br>裁判请在「瑞士轮」「淘汰赛」页录入结果；观众无需登录即可观看排名。</div>
+        <div class="flex" style="justify-content:center;margin-top:14px">
+          <a class="btn" href="#/swiss">前往瑞士轮 →</a>
+          <a class="btn" href="#/board">排名大屏 →</a>
+        </div>
+      </div>`;
+    return;
+  }
   if (!d.hasTournament) {
     el.innerHTML = createWizard();
     bindCreate(el);
@@ -52,6 +65,14 @@ export function renderSetup(el, d) {
     </div>
 
     <div class="panel corner">
+      <div class="phead">
+        <h2>操作日志</h2><span class="sub">AUDIT · 可追溯</span>
+        <span class="sp"><button class="btn btn-sm" id="audit-refresh">刷新</button></span>
+      </div>
+      <div id="audit-box"><p class="hint">点击「刷新」加载最近操作记录（含登录与全部变更，服务端 append-only 记账）。</p></div>
+    </div>
+
+    <div class="panel corner">
       <div class="phead"><h2>危险区</h2><span class="sub">DANGER ZONE</span></div>
       <div class="flex">
         <button class="btn btn-danger" id="destroy-t">销毁赛事重建</button>
@@ -61,6 +82,24 @@ export function renderSetup(el, d) {
   `;
   bindRoster(el, d, started);
   bindRules(el);
+  bindAudit(el);
+}
+
+async function loadAudit(el) {
+  const box = $('#audit-box', el);
+  box.innerHTML = '<p class="hint">加载中…</p>';
+  try {
+    const { entries } = await api('GET', '/audit?limit=200');
+    if (!entries.length) { box.innerHTML = '<p class="hint">暂无记录</p>'; return; }
+    box.innerHTML = `<div class="log-feed">${entries.map((e) => `
+      <div class="lg ${e.ok ? '' : 'elim'}"><span class="dim">${fmtTime(Date.parse(e.ts))}</span> — <b>${esc(e.user)}</b>(${esc(e.role)}) ${esc(e.action)}${e.ok ? '' : ` <span class="red">✗ ${esc(e.error || '')}</span>`} <span class="dim">${esc(e.ip)}</span></div>`).join('')}</div>`;
+  } catch {
+    box.innerHTML = '<p class="hint">加载失败（需要管理员会话）</p>';
+  }
+}
+
+function bindAudit(el) {
+  $('#audit-refresh', el).addEventListener('click', () => loadAudit(el));
 }
 
 function rosterTable(s, started) {

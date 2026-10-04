@@ -1,5 +1,6 @@
 // 视图：淘汰赛 —— 8强录取 / 志愿编组 / 车轮战控制台 / 决赛与颁奖
 import { api } from '../api.js';
+import { can } from '../main.js';
 import { esc, fmtAro, fmtPts, teamName, $ } from '../ui.js';
 
 let assignMap = {}; // 志愿分配暂存 teamId → 'A'|'B'
@@ -16,6 +17,10 @@ export function renderKnockout(el, d) {
     return;
   }
   if (k.phase === 'assign') {
+    if (!can('admin')) {
+      el.innerHTML = '<div class="panel corner"><div class="phead"><h2>志愿分配</h2></div><div class="empty">进攻组别编组由管理员操作 — 当前为只读视图</div></div>';
+      return;
+    }
     if (assignPhaseOf(k) !== assignMap.__phase) assignMap = { __phase: assignPhaseOf(k) };
     el.innerHTML = assignHtml(d, k);
     bindAssign(el, d, k);
@@ -58,7 +63,9 @@ function preKnockoutHtml(d) {
         <tbody>${rows}</tbody>
       </table>
       <div class="mt" style="margin-top:16px">
-        <button class="btn btn-primary btn-lg" id="ko-init">确认录取，进入淘汰赛</button>
+        ${can('admin')
+          ? '<button class="btn btn-primary btn-lg" id="ko-init">确认录取，进入淘汰赛</button>'
+          : '<p class="hint">录取由管理员操作。</p>'}
       </div>
     </div>`;
 }
@@ -141,8 +148,9 @@ function bindAssign(el, d, k) {
 }
 
 function battleHtml(d, k) {
-  const consoles = ['A', 'B'].map((g) => consoleHtml(d, k, g)).join('');
-  const finalCard = k.phase === 'final' ? finalHtml(d, k) : '';
+  const ro = !can('referee'); // 未登录观众只读；裁判及以上可录入
+  const consoles = ['A', 'B'].map((g) => consoleHtml(d, k, g, ro)).join('');
+  const finalCard = k.phase === 'final' ? finalHtml(d, k, ro) : '';
   const extra = k.phase === 'final'
     ? `<div class="banner">场上仅剩两支防守方 —— 决赛开始（BO3，先胜 2 局者夺冠）。</div>`
     : '';
@@ -163,8 +171,8 @@ export function consoleHtml(d, k, g, ro = false) {
   const nm = (id) => teamName(d, id);
   const eliminatedIds = new Set(k.eliminated.map((e) => e.id));
   const aliveQueue = grp.queue.filter((id) => !eliminatedIds.has(id));
-  // 退赛小按钮（ro 只读模式不渲染）：标记后规则自动推进
-  const kick = (id) => ro ? '' :
+  // 退赛小按钮（仅管理员）：标记后规则自动推进
+  const kick = (id) => (ro || !can('admin')) ? '' :
     `<button class="btn btn-sm btn-danger" data-kick="${id}" title="标记退赛：当前场次判负并正常结算">✕</button>`;
 
   const duel = cur ? `
@@ -211,7 +219,7 @@ export function consoleHtml(d, k, g, ro = false) {
 
 // 决赛卡片（board 大屏复用；ro=true 只读）
 export function finalHtml(d, k, ro = false) {
-  const kickFinal = (id) => ro ? '' :
+  const kickFinal = (id) => (ro || !can('admin')) ? '' :
     `<button class="btn btn-sm btn-danger" data-kick="${id}" title="决赛退赛：对手夺冠">✕</button>`;
   const [a, b] = k.final.players;
   const aWins = k.final.games.filter((x) => x === 'a').length;

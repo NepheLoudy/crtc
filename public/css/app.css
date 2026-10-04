@@ -419,6 +419,27 @@ details.hist .hist-body { padding: 4px 14px 14px; }
 ::-webkit-scrollbar-thumb { background: rgba(126,164,204,.22); border: 2px solid var(--bg); }
 ::-webkit-scrollbar-track { background: transparent; }
 
+/* ---------------- 登录 ---------------- */
+.cmdbar-actions .who {
+  font-family: var(--font-disp); font-size: 12px; letter-spacing: .06em;
+  color: var(--text); margin-right: 4px; white-space: nowrap;
+}
+.cmdbar-actions .who b { color: var(--amber); }
+.login-mask {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(6, 9, 14, 0.72); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+}
+.login-box {
+  width: 360px; max-width: calc(100vw - 40px);
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 1px solid var(--line-strong);
+  padding: 22px 24px 24px;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  animation: rowIn .25s both;
+}
+.lg-err { font-size: 12px; margin-top: 10px; }
+
 .mono { font-family: var(--font-mono); }
 .dim { color: var(--dim); }
 .amber { color: var(--amber); }

@@ -10,10 +10,44 @@ npm install
 npm start          # 默认 http://localhost:8321，PORT 环境变量可改
 ```
 
-打开后进入「赛前设置」创建赛事（预置 12 支示例队伍，替换成真实名单即可）。
-演示数据：`node scripts/seed.mjs http://localhost:8321 --fresh`（会清空当前赛事重建到淘汰赛阶段）。
+## 账号与权限
 
-同一局域网的手机 / 平板 / 投屏电脑直接访问启动时打印的局域网地址；`#/board` 是只读排名大屏。
+禁止注册，账号由管理员通过 CLI 预置：
+
+```bash
+node scripts/user.mjs add <用户名> <密码> <admin|referee>   # 建号
+node scripts/user.mjs passwd <用户名> <新密码>              # 改密
+node scripts/user.mjs remove <用户名>                       # 删除
+node scripts/user.mjs list                                  # 列表
+```
+
+| 角色 | 权限 |
+| --- | --- |
+| 未登录（观众/大屏） | 只读：状态、SSE 实时推送、排名 CSV |
+| referee（裁判） | 录入每轮结果、确认轮次、淘汰赛录局与决赛录入 |
+| admin（管理员） | 全部：建赛/销毁/设置/名册/生成对阵/退赛/撤销/审计/全量导出 |
+
+- 密码 scrypt 加盐哈希存 `data/accounts.json`；会话持久化 `data/sessions.json`（7 天有效，同账号重登踢旧会话）。
+- 服务端强制校验（前端仅做按钮隐藏）；401 未登录 / 403 权限不足。
+- **可追溯**：所有变更（含登录成败与越权尝试）追加写入 `data/audit.jsonl`（谁、何时、干了什么、来源 IP），管理员在「赛前设置 → 操作日志」页查看。
+
+## 部署到小电脑（DESKTOP-FE1MIGI）
+
+```bash
+node scripts/deploy-mini-pc.mjs                    # 走 Radmin mesh（26.6.74.79）
+node scripts/deploy-mini-pc.mjs --host 192.168.31.57   # 与小电脑同处 31.x 内网时
+node scripts/deploy-mini-pc.mjs --pass <SSH密码>       # 未配 SSH key 时
+```
+
+流程：打包工作区（排除 node_modules/data/.git）→ SFTP 推送到 `C:/qianli/dubov-tournament` → 远端解压 + npm install（首装）→ pm2 启动（端口 8321，`MINI_PC_PORT` 可改）→ 健康检查。部署后在**小电脑上**建账号：
+
+```bash
+cd C:\qianli\dubov-tournament
+node scripts/user.mjs add admin <管理员密码> admin
+node scripts/user.mjs add referee1 <裁判密码> referee
+```
+
+局域网用户直接访问 `http://192.168.31.57:8321`（`#/board` 为免登录排名大屏）。
 
 ## 页面
 
@@ -74,10 +108,13 @@ scripts/seed.mjs   演示数据播种（走真实 HTTP API）
 ## 命令
 
 ```bash
-npm test                        # 23 个单元测试（含退赛继承）
-npm run sim                     # 随机模拟赛（可带队伍数/种子参数：node test/simulation.mjs 16 42）
+npm test                        # 25 个单元测试（含退赛判负推进）
+npm run sim                     # 随机模拟赛（node test/simulation.mjs 16 42 可带队伍数/种子/平局率）
 npm start / npm run dev         # 启动 / --watch 启动
-node scripts/seed.mjs [url] --fresh
+node scripts/seed.mjs <url> --fresh --user admin --pass <密码>   # 演示数据
+node scripts/api-audit.mjs      # API 审计 40 项（需服务在跑）
+node scripts/auth-audit.mjs     # 权限矩阵 33 项（需服务在跑 + 预置账号）
+node scripts/deploy-mini-pc.mjs # 部署小电脑
 ```
 
 ## 数据与运维

@@ -30,6 +30,7 @@
   <div class="cmdbar-actions">
     <button class="btn btn-ghost btn-sm" id="btn-undo" title="撤销上一步操作" hidden>↩ 撤销</button>
     <div class="conn" id="conn"><i class="led led-off"></i><span>离线</span></div>
+    <div id="user-box"></div>
   </div>
 </header>
 
@@ -48,6 +49,20 @@
 </div>
 
 <div class="toasts" id="toasts"></div>
+
+<div class="login-mask" id="login-mask" hidden>
+  <div class="login-box corner">
+    <div class="phead"><h2>裁判登录</h2><span class="sub">REFEREE ACCESS</span></div>
+    <div class="field"><label>用户名</label><input type="text" id="lg-name" autocomplete="username"></div>
+    <div class="field mt"><label>密码</label><input type="password" id="lg-pass" autocomplete="current-password"></div>
+    <div class="lg-err red" id="lg-err" hidden></div>
+    <div class="flex mt" style="margin-top:18px">
+      <button class="btn btn-primary grow" id="lg-go">登录</button>
+      <button class="btn" id="lg-cancel">取消</button>
+    </div>
+    <p class="hint mt">账号由管理员统一发放，不开放注册。观众无需登录即可观看排名。</p>
+  </div>
+</div>
 
 <script type="module" src="/js/main.js"></script>
 </body>

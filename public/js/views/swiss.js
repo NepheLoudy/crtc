@@ -1,5 +1,6 @@
 // 视图：瑞士轮 —— 对阵生成 / 结果录入 / 实时积分排名 / 轮次历史
 import { api } from '../api.js';
+import { can } from '../main.js';
 import { esc, fmtAro, fmtPts, teamName, $ } from '../ui.js';
 
 export function renderSwiss(el, d) {
@@ -27,14 +28,16 @@ export function renderSwiss(el, d) {
       <div class="panel corner">
         <div class="phead"><h2>瑞士轮完成</h2><span class="sub">QUALIFICATION</span></div>
         <div class="banner">按「积分 → ARO」录取前 8 名进入淘汰赛（条款 5.2）。资格名单与防守方分配见「淘汰赛」页。</div>
-        <a class="btn btn-primary btn-lg" href="#/knockout">前往淘汰赛 →</a>
+        ${can('admin') ? '<a class="btn btn-primary btn-lg" href="#/knockout">前往淘汰赛 →</a>' : '<p class="hint">等待管理员进入淘汰赛。</p>'}
       </div>`;
   } else {
     left = `
       <div class="panel corner">
         <div class="phead"><h2>第 ${done + 1} 轮</h2><span class="sub">ROUND ${done + 1} / ${total}</span></div>
         <p class="dim mb">尚未生成对阵。程序按「积分分组 → 组内 ARO 升序折叠配对 → 奇数组上调级联 → 重复对位消解 → 批次随机」自动执行（条款 5.1 / 5.3.1 / 5.3.5）。</p>
-        <button class="btn btn-primary btn-lg" id="gen-round">生成第 ${done + 1} 轮对阵</button>
+        ${can('admin')
+          ? `<button class="btn btn-primary btn-lg" id="gen-round">生成第 ${done + 1} 轮对阵</button>`
+          : '<p class="hint">等待管理员生成对阵。</p>'}
       </div>`;
   }
 
@@ -50,7 +53,8 @@ function pendingHtml(d, p) {
   const promoted = new Set(p.promoted || []);
   const demoted = new Set(p.demoted || []);
   const resultsIn = p.pairings.every((x) => x.result);
-  const pairs = p.pairings.map((x, i) => pairRow(d, x, promoted, demoted, i)).join('');
+  const canScore = can('referee');
+  const pairs = p.pairings.map((x, i) => pairRow(d, x, promoted, demoted, i, canScore)).join('');
   const bye = p.bye ? `
     <div class="pairing" style="border-style:dashed">
       <div class="board-no">—</div>
@@ -69,29 +73,31 @@ function pendingHtml(d, p) {
         <h2>第 ${p.round} 轮对阵</h2>
         <span class="sub">PAIRINGS · ${p.pairings.length} 台</span>
         <span class="sp">
-          <button class="btn btn-sm" id="regen-round">重新生成</button>
+          ${can('admin') ? '<button class="btn btn-sm" id="regen-round">重新生成</button>' : ''}
         </span>
       </div>
       ${p.warnings?.length ? `<div class="banner red">⚠ ${p.warnings.map(esc).join('<br>⚠ ')}</div>` : ''}
       ${bye}
       ${pairs}
       <div class="flex mt" style="margin-top:16px">
-        <button class="btn btn-primary btn-lg" id="commit-round" ${resultsIn ? '' : 'disabled'}>确认本轮成绩，结算 ARO</button>
-        <span class="hint">${resultsIn ? '全部对局已录入，确认后进入积分与 ARO 结算。' : '还有对局未录入结果。'}</span>
+        ${canScore
+          ? `<button class="btn btn-primary btn-lg" id="commit-round" ${resultsIn ? '' : 'disabled'}>确认本轮成绩，结算 ARO</button>
+             <span class="hint">${resultsIn ? '全部对局已录入，确认后进入积分与 ARO 结算。' : '还有对局未录入结果。'}</span>`
+          : '<span class="hint">结果由裁判录入；登录后可操作。</span>'}
       </div>
     </div>`;
 }
 
-function pairRow(d, p, promoted, demoted, i) {
+function pairRow(d, p, promoted, demoted, i, canScore) {
   const aWin = p.result === 'a';
   const bWin = p.result === 'b';
   const draw = p.result === 'draw';
-  const seg = `
+  const seg = canScore ? `
     <span class="seg" data-board="${p.board}">
       <button class="${aWin ? 'on-a' : ''}" data-res="a" title="左边队伍胜">胜</button>
       <button class="${draw ? 'on-d' : ''}" data-res="draw">平</button>
       <button class="${bWin ? 'on-b' : ''}" data-res="b" title="右边队伍胜">胜</button>
-    </span>`;
+    </span>` : `<span class="vs-sep">${aWin ? '1:0' : bWin ? '0:1' : draw ? '½:½' : 'VS'}</span>`;
   return `
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
       <div class="board-no">${String(p.board).padStart(2, '0')}</div>

@@ -1,0 +1,124 @@
+'use strict';
+// 一键部署到小电脑（DESKTOP-FE1MIGI）
+// 用法：
+//   node scripts/deploy-mini-pc.mjs [--host 26.6.74.79] [--port 22] [--user mechax] [--pass XXX]
+// 默认走 Radmin mesh；笔记本与小电脑同处 192.168.31.x 内网时可用 --host 192.168.31.57
+// 步骤：打包(排除 node_modules/data/.git) → SFTP 推送 → 远端解压 → pm2 重启 → 健康检查
+// 依赖：ssh2（C:/Users/0d00/Desktop/qianli/approval-bot/node_modules）
+import { Client } from 'C:/Users/0d00/Desktop/qianli/approval-bot/node_modules/ssh2/index.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const REMOTE_DIR = 'C:/qianli/dubov-tournament';
+const REMOTE_APP = 'dubov-tournament';
+const PORT_ENV = process.env.MINI_PC_PORT || '8321';
+
+// 参数
+const argv = process.argv.slice(2);
+const opt = (k, dflt) => {
+  const i = argv.indexOf(`--${k}`);
+  return i >= 0 ? argv[i + 1] : dflt;
+};
+const HOST = opt('host', '26.6.74.79');
+const PORT = Number(opt('port', '22'));
+const USER = opt('user', 'mechax');
+const PASS = opt('pass', process.env.MINI_PC_PASS || undefined);
+
+const log = (m) => console.log(`[deploy] ${m}`);
+const die = (m) => { console.error(`[deploy] ✗ ${m}`); process.exit(1); };
+
+function pack() {
+  log('打包项目（工作区，排除 node_modules/data/.git）…');
+  const tar = path.join(ROOT, 'dubov-deploy.tar');
+  execSync(
+    `tar -cf "${tar}" --exclude node_modules --exclude data --exclude .git --exclude "*.tar" .`,
+    { cwd: ROOT, stdio: 'inherit' },
+  );
+  const size = (fs.statSync(tar).size / 1024 / 1024).toFixed(1);
+  log(`打包完成: ${size} MB（远端 node_modules 缺失时将自动 npm install）`);
+  return tar;
+}
+
+function connect() {
+  return new Promise((resolve, reject) => {
+    const conn = new Client();
+    conn.on('ready', () => resolve(conn))
+      .on('error', (e) => reject(new Error(`SSH 连接失败: ${e.message}（小电脑在线吗？mesh IP 变了吗？先看笔记本 Radmin GUI 成员列表）`)))
+      .connect({
+        host: HOST, port: PORT, username: USER,
+        password: PASS, readyTimeout: 20000, keepaliveInterval: 5000,
+      });
+  });
+}
+
+function run(conn, cmd) {
+  return new Promise((resolve, reject) => {
+    conn.exec(cmd, (err, stream) => {
+      if (err) return reject(err);
+      let out = '';
+      stream.on('close', (code) => resolve({ code, out }))
+        .on('data', (d) => { out += d; })
+        .stderr.on('data', (d) => { out += d; });
+    });
+  });
+}
+
+async function main() {
+  const tar = pack();
+  log(`连接 ${USER}@${HOST}:${PORT} …`);
+  const conn = await connect();
+  log('已连接');
+
+  const remoteTar = `${REMOTE_DIR}/deploy.tar`;
+  // 建目录
+  const mk = await run(conn, `if not exist "${REMOTE_DIR}" mkdir "${REMOTE_DIR}"`);
+  if (mk.code !== 0) die(`远端建目录失败: ${mk.out}`);
+
+  // SFTP 推送
+  await new Promise((resolve, reject) => {
+    conn.sftp((err, sftp) => {
+      if (err) return reject(err);
+      const wr = sftp.createWriteStream(remoteTar, { highWaterMark: 512 * 1024 });
+      wr.on('error', reject).on('close', resolve);
+      fs.createReadStream(tar).pipe(wr);
+    });
+  });
+  log('tar 已推送');
+
+  // 远端解压 + 安装 + 重启
+  const script = [
+    `cd /d ${REMOTE_DIR}`,
+    `tar -xf deploy.tar`,
+    `del deploy.tar`,
+    `if not exist node_modules (npm install --omit=dev --no-audit --no-fund) else (echo node_modules 已存在，跳过安装)`,
+    `npx pm2 delete ${REMOTE_APP} 2>nul & exit 0`,
+  ].join(' && ');
+  const setup = await run(conn, `${script}`);
+  log(`远端准备:\n${setup.out.trim().split('\n').slice(-6).join('\n')}`);
+
+  const start = await run(conn, `cd /d ${REMOTE_DIR} && set PORT=${PORT_ENV} && npx pm2 start server/index.js --name ${REMOTE_APP} --time && npx pm2 save`);
+  if (start.code !== 0) die(`pm2 启动失败:\n${start.out}`);
+  log(`pm2 已启动: ${REMOTE_APP} (端口 ${PORT_ENV})`);
+
+  await new Promise((r) => setTimeout(r, 2500));
+  const health = await run(conn, `curl -s -m 4 http://localhost:${PORT_ENV}/api/state`);
+  if (!health.out.includes('hasTournament')) die(`健康检查失败: ${health.out.slice(0, 200)}`);
+  log('健康检查 ✓（远端本机可访问）');
+
+  const acc = await run(conn, `cd /d ${REMOTE_DIR} && node scripts/user.mjs list`);
+  log(`账号列表:\n${acc.out.trim()}`);
+
+  conn.end();
+  fs.rmSync(tar, { force: true });
+  console.log(`\n✓ 部署完成: http://${HOST}:${PORT_ENV}  （局域网其他设备用小电脑内网 IP: http://192.168.31.57:${PORT_ENV}）`);
+  console.log('  账号管理（在小电脑上执行）:');
+  console.log(`    cd ${REMOTE_DIR}`);
+  console.log('    node scripts/user.mjs add <用户名> <密码> referee');
+  console.log('    node scripts/user.mjs list');
+  process.exit(0);
+}
+
+main().catch((e) => die(e.message));
