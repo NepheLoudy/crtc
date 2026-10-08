@@ -66,6 +66,30 @@ export function renderSetup(el, d) {
 
     <div class="panel corner">
       <div class="phead">
+        <h2>队员申请</h2><span class="sub">PLAYER REQUESTS · 条款 5.3.4</span>
+      </div>
+      ${(s.requests || []).length ? `
+        <table class="grid">
+          <thead><tr><th>时间</th><th>队伍</th><th>类型</th><th>理由</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody>${s.requests.slice().reverse().map((r) => {
+            const team = s.teams.find((t) => t.id === r.teamId);
+            return `
+            <tr>
+              <td class="mono dim">${fmtTime(Date.parse(r.requestedAt))}</td>
+              <td>${esc(team?.name || r.teamId)}</td>
+              <td>${r.type === 'withdraw' ? '<span class="tag tag-out">弃赛</span>' : '<span class="tag tag-atk">场次调换</span>'}</td>
+              <td class="dim">${esc(r.reason || '—')}</td>
+              <td>${r.status === 'pending' ? '<span class="tag tag-bye">待处理</span>' : r.status === 'approved' ? '<span class="tag tag-up">已批准</span>' : '<span class="tag tag-out">已拒绝</span>'}</td>
+              <td>${r.status === 'pending' ? `
+                <button class="btn btn-sm btn-primary" data-approve="${r.id}">批准</button>
+                <button class="btn btn-sm" data-reject="${r.id}">拒绝</button>` : '—'}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>` : '<p class="hint">暂无队员申请。队员在「我的比赛」页提交弃赛 / 场次调换申请后在此处理。</p>'}
+    </div>
+
+    <div class="panel corner">
+      <div class="phead">
         <h2>操作日志</h2><span class="sub">AUDIT · 可追溯</span>
         <span class="sp"><button class="btn btn-sm" id="audit-refresh">刷新</button></span>
       </div>
@@ -226,6 +250,19 @@ function bindRoster(el, d, started) {
   el.onclick = async (e) => {
     const t = e.target.closest('button');
     if (!t) return;
+    if (t.dataset.approve) {
+      const req = d.state.requests.find((r) => r.id === t.dataset.approve);
+      const isWithdraw = req?.type === 'withdraw';
+      if (!confirm(`批准${isWithdraw ? '弃赛' : '场次调换'}申请？${isWithdraw ? '\n\n批准后该队本轮判负并退出后续所有轮次（判负推进自动结算）。' : '\n\n批准后该队本轮对局将排至最后一台。'}`)) return;
+      await api('POST', `/requests/${t.dataset.approve}/approve`, {});
+      toast('申请已批准，规则已推进');
+      return;
+    }
+    if (t.dataset.reject) {
+      await api('POST', `/requests/${t.dataset.reject}/reject`, {});
+      toast('申请已拒绝');
+      return;
+    }
     if (t.dataset.edit) { editingId = t.dataset.edit; renderSetup(el, d); return; }
     if (t.dataset.cancel) { editingId = null; renderSetup(el, d); return; }
     if (t.dataset.save) {

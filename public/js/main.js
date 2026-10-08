@@ -5,24 +5,26 @@ import { renderSetup } from './views/setup.js';
 import { renderSwiss } from './views/swiss.js';
 import { renderKnockout } from './views/knockout.js';
 import { renderBoard } from './views/board.js';
+import { renderMe } from './views/me.js';
+import { renderHelp } from './views/help.js';
 
 export const app = {
   d: null,          // /api/state 载荷
-  me: null,         // 当前登录用户 { name, role }（SSE 推送不覆盖，仅登录/启动时确定）
+  me: null,         // 当前登录用户 { name, role, teamId }（SSE 推送不覆盖，仅登录/启动时确定）
   route: 'setup',
   connected: false,
 };
 
-// 权限判定：null 公开 | 'referee' 裁判及以上 | 'admin' 仅管理员
+// 权限判定：null 公开 | 'player' 队员及以上 | 'referee' 裁判及以上 | 'admin' 仅管理员
+const ROLE_LEVEL = { anonymous: 0, player: 1, referee: 2, admin: 3 };
 export function can(level) {
   if (!level) return true;
   const role = app.me?.role;
-  if (level === 'referee') return role === 'admin' || role === 'referee';
-  if (level === 'admin') return role === 'admin';
-  return false;
+  if (!role) return false;
+  return (ROLE_LEVEL[role] || 0) >= (ROLE_LEVEL[level] || 99);
 }
 
-const VIEWS = { setup: renderSetup, swiss: renderSwiss, knockout: renderKnockout, board: renderBoard };
+const VIEWS = { setup: renderSetup, swiss: renderSwiss, knockout: renderKnockout, board: renderBoard, me: renderMe, help: renderHelp };
 
 export function currentPhase(d) {
   if (!d.hasTournament) return 'setup';
@@ -117,6 +119,10 @@ function bindLogin() {
   window.addEventListener('dubov:need-login', (e) => {
     if (!app.me) showLogin(e.detail || '');
   });
+  // 「我的比赛」未登录页的引导按钮
+  window.addEventListener('dubov:open-login', () => {
+    if (!app.me) showLogin();
+  });
 }
 
 function renderChrome(d) {
@@ -133,6 +139,12 @@ function renderChrome(d) {
   $('#conn .led').className = `led ${app.connected ? 'led-on' : 'led-off'}`;
   $('#conn span').textContent = app.connected ? '实时同步' : '连接断开';
   renderUserBox();
+  // 侧栏按角色可见：赛前设置仅管理员；我的比赛仅登录用户
+  $$('#rail a').forEach((a) => {
+    const perm = a.dataset.perm;
+    if (!perm) return;
+    a.style.display = can(perm) ? '' : 'none';
+  });
 }
 
 export function render() {
@@ -151,6 +163,10 @@ function guardRoute() {
   // 无赛事时强制回设置页
   if (!d.hasTournament && app.route !== 'setup') {
     app.route = 'setup';
+  }
+  // 已登录但无权访问当前页：队员/裁判访问设置页 → 引导到「我的比赛」
+  if (app.route === 'setup' && app.me && !can('admin')) {
+    app.route = 'me';
   }
 }
 

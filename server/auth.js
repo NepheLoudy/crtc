@@ -12,7 +12,7 @@ const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const SESSION_TTL_MS = 7 * 24 * 3600 * 1000; // 会话 7 天
 
-export const ROLES = ['admin', 'referee'];
+export const ROLES = ['admin', 'referee', 'player'];
 
 function ensureDataDir() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -42,7 +42,8 @@ export function listAccounts() {
   return loadJson(ACCOUNTS_FILE, { users: [] }).users.map(({ passHash, salt, ...rest }) => rest);
 }
 
-export function createAccount(name, password, role = 'referee', createdBy = 'cli') {
+// player 角色可绑定队伍（--team <teamId>），登录后定位「我的队伍」
+export function createAccount(name, password, role = 'referee', createdBy = 'cli', teamId = null) {
   if (!ROLES.includes(role)) throw new Error(`非法角色: ${role}（可选 ${ROLES.join('/')}）`);
   const nameClean = String(name || '').trim();
   if (!nameClean) throw new Error('用户名不能为空');
@@ -54,13 +55,14 @@ export function createAccount(name, password, role = 'referee', createdBy = 'cli
     id: `u${db.users.length + 1}`,
     name: nameClean,
     role,
+    teamId: role === 'player' ? (teamId || null) : null,
     salt,
     passHash: hashPassword(password, salt),
     createdAt: new Date().toISOString(),
     createdBy,
   });
   saveJson(ACCOUNTS_FILE, db);
-  return { name: nameClean, role };
+  return { name: nameClean, role, teamId: role === 'player' ? (teamId || null) : null };
 }
 
 export function removeAccount(name) {
@@ -106,10 +108,10 @@ export function login(name, password) {
   const now = Date.now();
   sessions.sessions = sessions.sessions.filter((s) => s.expiresAt > now && s.userId !== u.id);
   const token = crypto.randomBytes(32).toString('hex');
-  sessions.sessions.push({ token, userId: u.id, name: u.name, role: u.role, createdAt: now, expiresAt: now + SESSION_TTL_MS });
+  sessions.sessions.push({ token, userId: u.id, name: u.name, role: u.role, teamId: u.teamId || null, createdAt: now, expiresAt: now + SESSION_TTL_MS });
   sessionsDirty = true;
   persistSessions();
-  return { token, user: { name: u.name, role: u.role } };
+  return { token, user: { name: u.name, role: u.role, teamId: u.teamId || null } };
 }
 
 export function logout(token) {
@@ -129,5 +131,5 @@ export function userForToken(token) {
     return null;
   }
   if (sessionsDirty) persistSessions();
-  return { name: s.name, role: s.role };
+  return { name: s.name, role: s.role, teamId: s.teamId || null };
 }

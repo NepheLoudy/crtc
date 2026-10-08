@@ -3,8 +3,9 @@
 //
 // 权限矩阵（服务端强制，前端仅做 UX 隐藏）：
 //   公开（免登录）：查询状态/SSE/排名CSV导出/登录
-//   referee（裁判）：录入对局结果、确认轮次、淘汰赛录局与决赛录入
-//   admin（管理员）：其余全部（建赛/销毁/设置/名册/生成对阵/退赛/撤销/审计/全量导出）
+//   player（队员）：以上 + 查看「我的比赛」+ 提交弃赛/场次调换申请（管理员落地）
+//   referee（裁判）：以上 + 录入对局结果、确认轮次、淘汰赛录局与决赛录入
+//   admin（管理员）：其余全部（建赛/销毁/设置/名册/生成对阵/退赛/撤销/申请处理/审计/全量导出）
 import express from 'express';
 import * as store from './store.js';
 import * as auth from './auth.js';
@@ -13,6 +14,7 @@ import {
   newTournament, addTeams, updateTeam, removeTeam, withdrawTeam, reinstateTeam,
   generateRound, submitResults, commitRound, regenerateRound,
   pendingRound, committedRounds, standings,
+  addRequest, getRequest, approveReschedule, rejectRequest,
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
@@ -53,7 +55,14 @@ function view(me) {
   };
 }
 
-// perm: null 公开 | 'referee' 裁判及以上 | 'admin' 仅管理员
+// perm: null 公开 | 'player' 队员及以上 | 'referee' 裁判及以上 | 'admin' 仅管理员
+const ROLE_LEVEL = { anonymous: 0, player: 1, referee: 2, admin: 3 };
+function hasPerm(user, perm) {
+  if (!perm) return true;
+  if (!user) return false;
+  return (ROLE_LEVEL[user.role] || 0) >= (ROLE_LEVEL[perm] || 99);
+}
+
 function wrap(label, fn, { needState = true, perm = 'admin' } = {}) {
   return (req, res) => {
     const who = req.user || { name: '-', role: 'anonymous' };
@@ -70,9 +79,9 @@ function wrap(label, fn, { needState = true, perm = 'admin' } = {}) {
           finish(false, { error: '需要登录' });
           return res.status(401).json({ ok: false, error: '需要登录' });
         }
-        if (perm === 'admin' && req.user.role !== 'admin') {
-          finish(false, { error: '需要管理员权限' });
-          return res.status(403).json({ ok: false, error: '需要管理员权限' });
+        if (!hasPerm(req.user, perm)) {
+          finish(false, { error: '权限不足' });
+          return res.status(403).json({ ok: false, error: '权限不足' });
         }
       }
       if (needState && !store.get()) throw new Error('尚未创建赛事，请先在赛前设置中建赛');
@@ -238,6 +247,40 @@ export function createApiRouter() {
   api.post('/knockout/final', wrap('录入决赛对局', (req) => {
     recordFinalGame(store.get(), req.body?.outcome);
   }, { perm: 'referee' }));
+
+  // ---- 队员申请（player 提出，管理员落地；5.3.4）----
+  api.post('/requests', wrap('提交申请', (req) => {
+    const state = store.get();
+    const me = req.user;
+    let teamId = me.teamId;
+    if (me.role === 'admin' && req.body?.teamId) teamId = req.body.teamId; // 管理员可代提
+    if (!teamId) throw new Error('当前账号未绑定队伍，无法提交申请');
+    const request = addRequest(state, { type: req.body?.type, teamId, reason: req.body?.reason });
+    return { request };
+  }, { perm: 'player' }));
+
+  api.post('/requests/:id/approve', wrap('批准申请', (req) => {
+    const state = store.get();
+    const request = getRequest(state, req.params.id);
+    if (!request) throw new Error('申请不存在');
+    if (request.type === 'withdraw') {
+      // 弃赛：按当前阶段分发（瑞士轮判负 / 淘汰赛判负推进），与人工退赛同一套规则
+      const k = state.knockout;
+      if (k && ['assign', 'battle', 'final', 'done'].includes(k.phase)) {
+        withdrawFromKnockout(state, request.teamId);
+      } else {
+        withdrawTeam(state, request.teamId, { midRound: true });
+      }
+      request.status = 'approved';
+      request.handledAt = new Date().toISOString();
+    } else {
+      approveReschedule(state, req.params.id);
+    }
+  }, { perm: 'admin' }));
+
+  api.post('/requests/:id/reject', wrap('拒绝申请', (req) => {
+    rejectRequest(store.get(), req.params.id);
+  }, { perm: 'admin' }));
 
   // ---- 导出：排名CSV公开（公示），全量JSON仅管理员 ----
   api.get('/export/json', (req, res) => {

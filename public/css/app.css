@@ -440,6 +440,17 @@ details.hist .hist-body { padding: 4px 14px 14px; }
 }
 .lg-err { font-size: 12px; margin-top: 10px; }
 
+/* ---------------- 帮助 & 我的比赛 ---------------- */
+.help-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.help-tabs .tab-btn.on { background: var(--amber-dim); border-color: var(--amber); color: var(--amber); }
+.doc-list { margin: 8px 0 4px 20px; display: flex; flex-direction: column; gap: 6px; }
+.doc-list li::marker { color: var(--amber); }
+.doc-list code { font-family: var(--font-mono); font-size: 12px; background: var(--bg2); border: 1px solid var(--line); padding: 1px 6px; }
+.me-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+@media (max-width: 1000px) { .me-grid { grid-template-columns: 1fr; } }
+.me-team .nm { font-family: var(--font-disp); font-size: 20px; font-weight: 600; letter-spacing: .04em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.me-team .kv .v { font-size: 18px; }
+
 .mono { font-family: var(--font-mono); }
 .dim { color: var(--dim); }
 .amber { color: var(--amber); }

@@ -222,3 +222,44 @@ test('轮空与重复对位同轮：消解重跑级联不吞轮空者（9队回�
   playRound(s, {});
   generateRound(s);
 });
+
+// ---------- 队员申请（5.3.4） ----------
+import { addRequest, approveWithdraw, approveReschedule, rejectRequest } from '../lib/engine.js';
+
+test('队员申请：提交、去重、批准调换排至最后一台', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s); // (丁,甲)(丙,乙)，批次随机
+  const pending = pendingRound(s);
+  const pairD = pending.pairings.find((p) => p.a === 't4');
+  const alreadyLast = pairD.board === pending.pairings.length;
+
+  const req = addRequest(s, { type: 'reschedule', teamId: 't4', reason: '设备调试' });
+  assert.equal(req.status, 'pending');
+  assert.throws(() => addRequest(s, { type: 'reschedule', teamId: 't4' }), /待处理/); // 同类去重
+
+  if (alreadyLast) {
+    // 已在最后一台：批准报错，队员可撤回诉求（管理员拒绝）
+    assert.throws(() => approveReschedule(s, req.id), /最后一台/);
+    rejectRequest(s, req.id);
+    assert.equal(req.status, 'rejected');
+  } else {
+    approveReschedule(s, req.id);
+    assert.equal(req.status, 'approved');
+    const last = pending.pairings[pending.pairings.length - 1];
+    assert.ok(last.a === 't4' || last.b === 't4', '丁应在最后一台');
+    pending.pairings.forEach((p, i) => assert.equal(p.board, i + 1, '批次号应重编'));
+    assert.ok(pairD.result == null, '调换不影响结果字段');
+  }
+});
+test('队员弃赛申请批准 → 判负推进', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const req = addRequest(s, { type: 'withdraw', teamId: 't4', reason: '设备故障' });
+  approveWithdraw(s, req.id);
+  const p = pairWith(s.swiss.rounds[0], 't4');
+  assert.equal(p.result, 'b');   // 判负（对手甲胜）
+  assert.equal(p.walkover, true);
+  const team = s.teams.find((t) => t.id === 't4');
+  assert.equal(team.withdrawn, true);
+  assert.throws(() => addRequest(s, { type: 'withdraw', teamId: 't4' }), /已退赛/);
+});
