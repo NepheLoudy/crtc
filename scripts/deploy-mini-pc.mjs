@@ -4,7 +4,7 @@
 //   node scripts/deploy-mini-pc.mjs [--host 26.6.74.79] [--port 22] [--user mechax] [--pass XXX]
 // 默认走 Radmin mesh；笔记本与小电脑同处 192.168.31.x 内网时可用 --host 192.168.31.57
 // 步骤：打包(排除 node_modules/data/.git) → SFTP 推送 → 远端解压 → pm2 重启 → 健康检查
-// 依赖：ssh2（C:/Users/0d00/Desktop/qianli/approval-bot/node_modules）
+// 依赖：ssh2（项目 devDependency，npm install 即可）
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,7 +13,13 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const require2 = createRequire(import.meta.url);
-const { Client } = require2('C:/Users/0d00/Desktop/qianli/approval-bot/node_modules/ssh2');
+// ssh2 为项目 devDependency；本地未安装时回退旧笔记本路径（历史兼容）
+let Client;
+try {
+  ({ Client } = require2('ssh2'));
+} catch {
+  ({ Client } = require2('C:/Users/0d00/Desktop/qianli/approval-bot/node_modules/ssh2'));
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // 小电脑默认 shell 是 Git Bash：SSH 命令用 POSIX 路径，SFTP 用 Windows 路径

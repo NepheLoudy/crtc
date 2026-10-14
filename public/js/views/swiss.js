@@ -97,7 +97,9 @@ function pairRow(d, p, promoted, demoted, i, canScore) {
       <button class="${aWin ? 'on-a' : ''}" data-res="a" title="左边队伍胜">胜</button>
       <button class="${draw ? 'on-d' : ''}" data-res="draw">平</button>
       <button class="${bWin ? 'on-b' : ''}" data-res="b" title="右边队伍胜">胜</button>
-    </span>` : `<span class="vs-sep">${aWin ? '1:0' : bWin ? '0:1' : draw ? '½:½' : 'VS'}</span>`;
+    </span>
+    ${p.result && !p.walkover ? `<button class="btn-reset" data-reset-board="${p.board}" title="清除已录结果，本场重赛">↺<i>重赛</i></button>` : ''}`
+    : `<span class="vs-sep">${aWin ? '1:0' : bWin ? '0:1' : draw ? '½:½' : 'VS'}</span>`;
   return `
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
       <div class="board-no">${String(p.board).padStart(2, '0')}</div>
@@ -197,6 +199,14 @@ function bindSwiss(el, d) {
 
   // 覆盖式绑定：SSE 高频重渲染下避免监听器叠加
   el.onclick = async (e) => {
+    const resetBtn = e.target.closest('[data-reset-board]');
+    if (resetBtn) {
+      const board = Number(resetBtn.dataset.resetBoard);
+      if (!confirm(`确定清除第 ${board} 台的已录结果、本场重赛吗？`)) return;
+      await api('POST', '/swiss/results', { results: [{ board, result: 'reset' }] });
+      toast(`第 ${board} 台结果已清除，可重新录入`);
+      return;
+    }
     const btn = e.target.closest('.seg button');
     if (!btn) return;
     const seg = btn.closest('.seg');

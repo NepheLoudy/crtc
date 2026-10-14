@@ -188,32 +188,100 @@ function rulesForm(s) {
 }
 
 function createWizard() {
-  const sampleText = SAMPLE.map(([n, v]) => `${n},${v}`).join('\n');
   return `
-    <div class="panel corner" style="max-width:860px;margin:4vh auto 0">
+    <div class="panel corner" style="max-width:980px;margin:4vh auto 0">
       <div class="phead"><h2>创建赛事</h2><span class="sub">TOURNAMENT SETUP</span></div>
       <div class="form-row">
         <div class="field grow" style="min-width:240px"><label>赛事名称</label><input type="text" id="cw-name" placeholder="例：第X届 XX 对抗赛" value="杜博夫系统对抗赛"></div>
         <div class="field" style="max-width:150px"><label>瑞士轮轮数</label><input type="number" id="cw-rounds" value="6" min="1" max="20"></div>
       </div>
-      <div class="field mt">
-        <label>队伍名单（每行一支：队伍名,中期考核得分总分）</label>
-        <textarea id="cw-teams" style="min-height:220px" placeholder="队伍名,分数">${esc(sampleText)}</textarea>
-        <span class="hint">预置了 12 支示例队伍可直接开赛；正式使用时清空替换。逗号可省略（计 0 分）。条款 5.3.3：该分数即首轮 ARO。</span>
+      <div class="mt">
+        <label>参赛队伍录入（填队伍名与中期考核得分总分，该分数即首轮 ARO · 条款 5.3.3）</label>
+        <table class="grid" id="cw-teams-table">
+          <thead><tr><th style="width:44px">#</th><th>队伍名</th><th style="width:150px">中期考核得分</th><th style="width:70px"></th></tr></thead>
+          <tbody id="cw-teams-body"></tbody>
+        </table>
+        <div class="flex mt" style="gap:8px">
+          <button class="btn btn-sm" id="cw-add-row">＋ 添加一行</button>
+          <button class="btn btn-sm" id="cw-paste-toggle">⇪ 粘贴批量导入</button>
+          <button class="btn btn-sm" id="cw-sample">载入示例</button>
+          <button class="btn btn-sm" id="cw-clear">清空</button>
+          <span class="hint">至少 2 支队伍；正式使用前请清掉示例数据。</span>
+        </div>
+        <div id="cw-paste-box" hidden class="mt">
+          <textarea id="cw-paste-text" placeholder="每行一支：队伍名,中期考核得分&#10;例如：&#10;闪电风暴,88&#10;钢铁洪流,75" style="min-height:120px"></textarea>
+          <div class="flex mt"><button class="btn btn-primary btn-sm" id="cw-paste-go">追加到表格</button><span class="hint">逗号可省略（省略时计 0 分）；追加不会覆盖已填行。</span></div>
+        </div>
       </div>
       <div class="flex mt" style="margin-top:20px">
         <button class="btn btn-primary btn-lg" id="cw-go">创建赛事</button>
-        <span class="hint">创建后可继续在名单中增删队伍，生成第 1 轮对阵后名单将锁定删除权限。</span>
+        <span class="hint">创建后可在「赛前设置 → 队伍名册」继续增改；生成第 1 轮对阵后名单将锁定删除权限。</span>
       </div>
     </div>`;
 }
 
+function wizardRowHtml(name = '', score = '') {
+  return `
+    <tr>
+      <td class="num dim"></td>
+      <td><input type="text" data-tw-name value="${esc(name)}" placeholder="队伍名" style="width:100%;max-width:280px"></td>
+      <td><input type="number" data-tw-score value="${esc(score)}" min="0" max="999" placeholder="0" style="max-width:110px"></td>
+      <td><button class="btn btn-sm" data-del-row title="删除本行">✕</button></td>
+    </tr>`;
+}
+
+function renumberWizardRows(body) {
+  [...body.querySelectorAll('tr')].forEach((tr, i) => {
+    tr.firstElementChild.textContent = i + 1;
+  });
+}
+
 function bindCreate(el) {
+  const body = $('#cw-teams-body', el);
+  body.innerHTML = wizardRowHtml(); // 初始留一空行引导录入
+  $('#cw-add-row', el).addEventListener('click', () => {
+    body.insertAdjacentHTML('beforeend', wizardRowHtml());
+    renumberWizardRows(body);
+    body.lastElementChild.querySelector('[data-tw-name]').focus();
+  });
+  $('#cw-sample', el).addEventListener('click', () => {
+    body.innerHTML = SAMPLE.map(([n, v]) => wizardRowHtml(n, v)).join('');
+    renumberWizardRows(body);
+    toast('已载入 12 支示例队伍，正式使用前请清空');
+  });
+  $('#cw-clear', el).addEventListener('click', () => {
+    body.innerHTML = wizardRowHtml();
+  });
+  $('#cw-paste-toggle', el).addEventListener('click', () => {
+    $('#cw-paste-box', el).hidden = !$('#cw-paste-box', el).hidden;
+  });
+  $('#cw-paste-go', el).addEventListener('click', () => {
+    const teams = parseTeams($('#cw-paste-text', el).value);
+    if (!teams.length) return toast('没有可导入的行', true);
+    body.insertAdjacentHTML('beforeend', teams.map((t) => wizardRowHtml(t.name, t.initialScore)).join(''));
+    renumberWizardRows(body);
+    $('#cw-paste-text', el).value = '';
+    toast(`已追加 ${teams.length} 支队伍`);
+  });
+  // 删除行（委托绑定）
+  body.addEventListener('click', (e) => {
+    const del = e.target.closest('[data-del-row]');
+    if (!del) return;
+    del.closest('tr').remove();
+    if (!body.querySelector('tr')) body.innerHTML = wizardRowHtml();
+    renumberWizardRows(body);
+  });
+
   $('#cw-go', el).addEventListener('click', async () => {
     const name = $('#cw-name', el).value.trim();
     const totalRounds = Number($('#cw-rounds', el).value) || 6;
-    const teams = parseTeams($('#cw-teams', el).value);
-    if (teams.length < 2) return toast('至少需要 2 支队伍', true);
+    const teams = [...body.querySelectorAll('tr')]
+      .map((tr) => ({
+        name: tr.querySelector('[data-tw-name]').value.trim(),
+        initialScore: Number(tr.querySelector('[data-tw-score]').value) || 0,
+      }))
+      .filter((t) => t.name);
+    if (teams.length < 2) return toast('至少需要 2 支队伍（填了名字的行才会计入）', true);
     await api('POST', '/tournament', { name, totalRounds, teams });
     toast(`赛事「${name}」已创建，共 ${teams.length} 支队伍`);
   });

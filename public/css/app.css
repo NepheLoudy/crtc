@@ -191,6 +191,14 @@ body::before {
 .seg button.on-a { background: var(--amber-dim); color: var(--amber); }
 .seg button.on-d { background: rgba(126,164,204,.12); color: var(--text); }
 .seg button.on-b { background: var(--cyan-dim); color: var(--cyan); }
+.btn-reset {
+  appearance: none; background: transparent; cursor: pointer; margin-left: 6px;
+  border: 1px dashed var(--line-strong); color: var(--faint);
+  font-family: var(--font-disp); font-size: 11px; letter-spacing: .04em;
+  padding: 5px 9px; transition: color .12s, border-color .12s, background .12s;
+}
+.btn-reset i { font-style: normal; margin-left: 3px; }
+.btn-reset:hover { color: var(--text); border-color: var(--dim); background: rgba(126,164,204,.08); }
 
 /* ---------------- 表格 ---------------- */
 table.grid { width: 100%; border-collapse: collapse; }

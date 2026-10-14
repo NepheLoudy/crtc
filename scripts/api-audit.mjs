@@ -1,7 +1,11 @@
 'use strict';
 // API 层全量检测：异常输入守门 + 撤销一致性
 // 每段显式重置状态，避免用例间污染。
-const BASE = 'http://localhost:8321';
+// 用法：node scripts/api-audit.mjs [BASE]（环境变量 DUBOV_ADMIN/DUBOV_PASS 指定管理员账号）
+const BASE = process.argv[2] || 'http://localhost:8321';
+const ADMIN_USER = process.env.DUBOV_ADMIN || 'admin';
+const ADMIN_PASS = process.env.DUBOV_PASS || 'admin';
+let TOKEN = '';
 let pass = 0, failCount = 0;
 const ok = (name, cond, detail = '') => {
   if (cond) { pass++; console.log(`  ✓ ${name}`); }
@@ -11,7 +15,7 @@ const ok = (name, cond, detail = '') => {
 async function api(method, url, body) {
   const res = await fetch(`${BASE}/api${url}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(TOKEN ? { 'x-session': TOKEN } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   let data = {};
@@ -42,6 +46,13 @@ const mkTournament = async (n = 9, rounds = 2) => {
 };
 
 (async () => {
+  const lg = await api('POST', '/auth/login', { name: ADMIN_USER, password: ADMIN_PASS });
+  if (!lg.data.ok) {
+    console.error(`管理员登录失败: ${lg.data.error}（先建号：node scripts/user.mjs add admin <密码> admin）`);
+    process.exit(1);
+  }
+  TOKEN = lg.data.token;
+
   console.log('== A. 空状态守门 ==');
   await hardReset();
   let r = await api('GET', '/state');

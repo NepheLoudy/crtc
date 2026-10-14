@@ -1,10 +1,11 @@
-// 视图：使用说明（裁判 / 参赛队员两版，管理员可看全部 + 运维备忘）
-import { esc, $ } from '../ui.js';
+// 视图：使用说明（比赛规则 / 裁判 / 参赛队员三版，管理员可看全部 + 运维备忘）
+import { esc, $, $$ } from '../ui.js';
 
 export function renderHelp(el, d) {
   el.innerHTML = `
     <div class="help-tabs mb">
-      <button class="btn btn-sm tab-btn on" data-tab="player">参赛队员须知</button>
+      <button class="btn btn-sm tab-btn on" data-tab="rules">比赛规则</button>
+      <button class="btn btn-sm tab-btn" data-tab="player">参赛队员须知</button>
       <button class="btn btn-sm tab-btn" data-tab="referee">裁判操作手册</button>
       <button class="btn btn-sm tab-btn" data-tab="admin">管理员备忘</button>
     </div>
@@ -18,10 +19,70 @@ export function renderHelp(el, d) {
     const b = e.target.closest('.tab-btn');
     if (b) show(b.dataset.tab);
   });
-  show('player');
+  show('rules');
 }
 
 const DOCS = {
+  rules: `
+    <div class="panel corner">
+      <div class="phead"><h2>杜博夫系统比赛规则</h2><span class="sub">SWISS · 5.1 / 5.3</span></div>
+
+      <h3 class="amber mt">5.1 每轮对阵生成流程</h3>
+      <ol class="doc-list">
+        <li>计算每位选手的 <b>ARO</b>（已交手对手的平均等级分）：<br>
+          <span class="mono">ARO = ( k<sub>1</sub>R<sub>1</sub> + k<sub>2</sub>R<sub>2</sub> + … + k<sub>n</sub>R<sub>n</sub> ) / n</span><br>
+          其中 i 为当前轮数，R<sub>i</sub> 指其第 i 轮对手的 ARO，n 为已进行的轮数总数，k 为荣誉系数（通常为 1，详见 5.3.2）。</li>
+        <li>按当前积分分组（胜 = 3，平 = 1，负 = 0）。</li>
+        <li>每组按 ARO <b>从低到高</b>排序。</li>
+        <li>低 ARO 配组内最高等级分，次低配次高（折叠配对）。</li>
+        <li>若某组人数为奇数，从下一低分组上调等级分最高者（见 5.3.1）。</li>
+        <li>生成对阵后<b>随机分配批次</b>。</li>
+      </ol>
+
+      <h3 class="amber mt">5.3.1 等级分调整</h3>
+      <p class="doc-list">按照组别从最高到最低（同积分组按照本组 ARO 大小决定顺序）依序选取（不论有多少个奇数组），若某组人数为奇数，则从下一低分组上调等级分最高者；若此举导致下一组别变为奇数人对阵则继续进行此条目，直至有组别出现偶数组或选取至最后一组。</p>
+      <p class="doc-list">在选取至最后一组的情况下，使 ARO 最低的组别轮空，其本轮 ARO 计算为<b>除本组外剩余对手 ARO 平均分</b>。</p>
+
+      <h3 class="amber mt">5.3.2 荣誉系数</h3>
+      <ul class="doc-list">
+        <li>对于被<b>上调</b>组，若在本轮<b>胜利</b>，会仅为其本轮对位的 ARO 计算获得一个值为 k 的系数奖励：<span class="mono">k = 1.04<sup>n</sup></span>；若失败则 k = 1。</li>
+        <li>对于被<b>下调</b>组，若在本轮<b>失败</b>，会仅为其本轮对位的 ARO 计算获得一个值为 k 的系数惩罚：<span class="mono">k = 0.97<sup>n</sup></span>；若成功则 k = 1。</li>
+        <li class="dim">系统实现注：指数 n 默认取当前轮数（第 1 轮 n=1，第 2 轮 n=2…），可在「赛前设置 → 规则参数」改为固定 1 或连续上调/下调次数。</li>
+      </ul>
+
+      <h3 class="amber mt">5.3.3 首轮 ARO 计算与分组</h3>
+      <p class="doc-list">首轮比赛各组的 ARO 值为<b>中期考核得分总分</b>。首轮比赛仅有一组，组内同样按照 5.1 完成匹配（若总数为奇数组则轮空 ARO 最低小组）。</p>
+
+      <h3 class="amber mt">5.3.4 弃赛与临时不能参赛解决方案</h3>
+      <ul class="doc-list">
+        <li>若在某轮<b>开始 1h 前</b>提出临时无法参赛，可以申请一次<b>场次调换</b>，将本组比赛排至本轮最后一组（「我的比赛」页提交申请，管理员批准）。</li>
+        <li>若在某轮<b>进行期间</b>提出无法参赛，则本轮中本组所在对战为本组<b>判负</b>。</li>
+        <li>若在某轮进行期间提出<b>弃赛</b>，则本轮中本组所在对战为本组判负，同时在之后所有排序中<b>删除该组</b>。</li>
+        <li>以上条款均仅在本组比赛<b>开始 30min 前</b>提出适用；未及时提出者自动判负且视情节予以警告及退赛处理。</li>
+      </ul>
+
+      <h3 class="amber mt">5.3.5 禁止重复</h3>
+      <p class="doc-list">若任意出现已经对位过的组别再次匹配的情况，则将其中 ARO 较高者<b>下调</b>至下一组别，将其中 ARO 较低者<b>上调</b>至上一组别（若产生奇数组别则再次适用 5.3.1 规则）。</p>
+    </div>
+
+    <div class="panel corner">
+      <div class="phead"><h2>赛程安排</h2><span class="sub">3 DAYS · 6 ROUNDS</span></div>
+      <p class="hint mb">共 3 天 6 轮，每轮 16 批（前 10 批 + 后 6 批）；轮间 15 分钟配对窗口由组委会完成「确认本轮 + 生成下一轮对阵」。</p>
+      <table class="grid">
+        <thead><tr><th>时间段</th><th>第1天</th><th>第2天</th><th>第3天</th></tr></thead>
+        <tbody>
+          <tr><td><b>上午</b> 9:00–12:00</td><td>第1轮 前10批</td><td>第3轮 前10批</td><td>第5轮 前10批</td></tr>
+          <tr><td><b>午饭</b> 12:00–13:00</td><td>休息</td><td>休息</td><td>休息</td></tr>
+          <tr><td><b>下午</b> 13:00–14:44</td><td>第1轮 后6批</td><td>第3轮 后6批</td><td>第5轮 后6批</td></tr>
+          <tr><td><b>配对</b> 14:44–14:59</td><td>第1轮结束，配对第2轮</td><td>第3轮结束，配对第4轮</td><td>第5轮结束，配对第6轮</td></tr>
+          <tr><td><b>下午</b> 14:59–17:59</td><td>第2轮 前10批</td><td>第4轮 前10批</td><td>第6轮 前10批</td></tr>
+          <tr><td><b>晚饭</b> 18:00–19:00</td><td>休息</td><td>休息</td><td>休息</td></tr>
+          <tr><td><b>晚上</b> 19:00–20:44</td><td>第2轮 后6批</td><td>第4轮 后6批</td><td>第6轮 后6批</td></tr>
+          <tr><td><b>结束</b></td><td>20:44</td><td>20:44</td><td>20:44（统计排名）</td></tr>
+        </tbody>
+      </table>
+    </div>`,
+
   player: `
     <div class="panel corner">
       <div class="phead"><h2>参赛队员须知</h2><span class="sub">FOR PLAYERS</span></div>
@@ -61,7 +122,7 @@ const DOCS = {
       <h3 class="amber mt">2. 瑞士轮成绩录入（每轮）</h3>
       <ul class="doc-list">
         <li>「瑞士轮」页确认台号与对阵（对阵由管理员生成，裁判无权生成/重排）。</li>
-        <li>每台对局点 <b>胜 / 平 / 胜</b> 三个按钮中的一边（左右两侧按钮分别代表左右队伍）。录错可随时重按覆盖，<b>确认前</b>均可修改。</li>
+        <li>每台对局点 <b>胜 / 平 / 胜</b> 三个按钮中的一边（左右两侧按钮分别代表左右队伍）。录错可随时重按覆盖，或点该场右侧的「<b>↺ 重赛</b>」清除已录结果，<b>确认前</b>均可修改。</li>
         <li>全部录入后点「<b>确认本轮成绩，结算 ARO</b>」——确认后积分与 ARO 立即结算并全网刷新，<b>确认动作不可由裁判撤销</b>（需要联系管理员）。</li>
         <li>某台显示「弃赛判负」为系统自动判负，无需录入；其余场次必须全部录入才能确认。</li>
       </ul>

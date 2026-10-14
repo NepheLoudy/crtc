@@ -146,6 +146,27 @@ test('确认门禁：结果未齐不可确认；轮次未确认不可生成下�
   assert.equal(pendingRound(s), null);
 });
 
+test('重赛：清除已录结果可重录；弃赛判负不可重赛', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const normal = r0.pairings.find((p) => p.a !== 't4' && p.b !== 't4');
+  submitResults(s, [{ board: normal.board, result: 'a' }]);
+  submitResults(s, [{ board: normal.board, result: 'reset' }]);
+  assert.equal(normal.result, null);
+  assert.throws(() => commitRound(s), /未录入结果/); // 清除后回到未录齐状态
+  // 弃赛判负由规则自动结算，重赛通道拒绝
+  withdrawTeam(s, 't4');
+  const w = r0.pairings.find((p) => p.a === 't4' || p.b === 't4');
+  assert.equal(w.walkover, true);
+  assert.throws(() => submitResults(s, [{ board: w.board, result: 'reset' }]), /弃赛/);
+  // 重录后可正常确认（弃赛场已自动判定）
+  submitResults(s, [{ board: normal.board, result: 'draw' }]);
+  commitRound(s);
+  const table = computeTable(s, 1);
+  assert.equal(table.get(normal.a).draws, 1);
+});
+
 test('regenerate 替换未确认轮次', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
   generateRound(s);

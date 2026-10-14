@@ -63,7 +63,7 @@ function hasPerm(user, perm) {
   return (ROLE_LEVEL[user.role] || 0) >= (ROLE_LEVEL[perm] || 99);
 }
 
-function wrap(label, fn, { needState = true, perm = 'admin' } = {}) {
+function wrap(label, fn, { needState = true, perm = 'admin', snapshot = true } = {}) {
   return (req, res) => {
     const who = req.user || { name: '-', role: 'anonymous' };
     const finish = (ok, extra = {}) => {
@@ -85,7 +85,8 @@ function wrap(label, fn, { needState = true, perm = 'admin' } = {}) {
         }
       }
       if (needState && !store.get()) throw new Error('尚未创建赛事，请先在赛前设置中建赛');
-      store.snapshot(label);
+      // 撤销不能先压快照——否则 undo() 弹出的正是刚压入的自身快照，等于空操作
+      if (snapshot) store.snapshot(label);
       const result = fn(req) ?? {};
       store.save();
       broadcast();
@@ -181,9 +182,8 @@ export function createApiRouter() {
     }
   }));
 
-  api.post('/undo', wrap('撤销', () => {
-    store.undo();
-  }));
+  // 撤销：不压快照、无赛事时也允许（销毁赛事后可反悔恢复）；返回被恢复操作的标签
+  api.post('/undo', wrap('撤销', () => ({ label: store.undo() }), { needState: false, snapshot: false }));
 
   // ---- 队伍（管理员）----
   api.post('/teams', wrap('添加队伍', (req) => {
