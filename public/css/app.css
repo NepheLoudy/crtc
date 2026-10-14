@@ -430,6 +430,7 @@ details.hist .hist-body { padding: 4px 14px 14px; }
   background: rgba(6, 9, 14, 0.72); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
 }
+.login-mask[hidden] { display: none; } /* display:flex 会覆盖 hidden 属性的 UA 样式，必须显式压回 */
 .login-box {
   width: 360px; max-width: calc(100vw - 40px);
   background: linear-gradient(180deg, var(--panel2), var(--panel));
