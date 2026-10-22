@@ -150,7 +150,7 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
   ].join('');
   return `
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
-      <div class="board-no">${String(p.board).padStart(2, '0')}<span class="bt">${win.day} ${win.time}</span></div>
+      <div class="board-no">${String(p.board).padStart(2, '0')}<span class="bt">${win.day} ${win.label}</span></div>
       <div class="side left">
         <span class="nmrow"><span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>${susp(p.a)}</span>
         <span class="aro">ARO ${fmtAro(p.aroA)}</span>
@@ -184,7 +184,7 @@ export function standingsHtml(d, { big = false } = {}) {
   }).join('');
   return `
     <div class="panel corner">
-      <div class="phead"><h2>积分排名</h2><span class="sub">STANDINGS · LIVE</span><span class="sp"><i class="led led-live"></i></span></div>
+      <div class="phead"><h2>积分排名</h2><span class="sub">STANDINGS · LIVE</span><span class="sp"><a class="btn btn-sm" href="/round.html?tab=standings" target="_blank" title="渲染排名卡（CRTC 风格），可导出图片">⬒ 导出</a><i class="led led-live"></i></span></div>
       <table class="grid ${big ? 'board-table' : ''}">
         <thead><tr><th>名次</th><th>队伍</th><th class="num">积分</th><th class="num">ARO</th><th class="num">胜-平-负</th></tr></thead>
         <tbody>${trs || '<tr><td colspan="5" class="hint" style="text-align:center">暂无数据</td></tr>'}</tbody>

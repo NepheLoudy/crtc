@@ -3,111 +3,178 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>本轮对阵 · 渲染导出</title>
+<title>CRTC · 渲染导出</title>
 <style>
-  body { margin: 0; background: #07090d; display: flex; flex-direction: column; align-items: center; padding: 24px 12px 40px; }
-  .toolbar { width: 920px; max-width: 100%; display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 12px; }
+  body { margin: 0; background: #2b2b2b; display: flex; flex-direction: column; align-items: center; padding: 24px 12px 48px; }
+  .toolbar { width: 940px; max-width: 100%; display: flex; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .toolbar .grp { display: flex; gap: 8px; }
   .toolbar a, .toolbar button {
-    font: 600 13px/1 "Segoe UI", "Microsoft YaHei", sans-serif; color: #fff; text-decoration: none;
-    background: #1a2230; border: 1px solid #2c3a4f; padding: 9px 16px; cursor: pointer; border-radius: 4px;
+    font: 700 13px/1 "Arial Black", "Microsoft YaHei", sans-serif; color: #FFD400; text-decoration: none;
+    background: #1c1c1c; border: 2px solid #FFD400; padding: 10px 16px; cursor: pointer;
   }
-  .toolbar button.primary { background: #2563eb; border-color: #2563eb; }
-  .toolbar a:hover, .toolbar button:hover { filter: brightness(1.15); }
-  @media print { .toolbar { display: none; } body { padding: 0; background: #07090d; } }
+  .toolbar button.on { background: #FFD400; color: #111; }
+  .toolbar button:not(.on):hover, .toolbar a:hover { background: #333; }
+  @media print { .toolbar { display: none; } body { padding: 0; background: #FFD400; } }
 </style>
 </head>
 <body>
   <div class="toolbar">
-    <a href="/">← 返回系统</a>
-    <button class="primary" id="btn-png">⬇ 保存为图片</button>
+    <div class="grp">
+      <button id="tab-round" class="on">本轮对阵</button>
+      <button id="tab-standings">实时排名</button>
+    </div>
+    <div class="grp">
+      <a href="/">← 返回系统</a>
+      <button id="btn-png">⬇ 保存为图片</button>
+    </div>
   </div>
   <div id="card"></div>
   <script type="module">
-    import { batchWindow, windowSummary } from '/js/schedule.js';
+    import { batchWindow, windowSummary, fullTimetable } from '/js/schedule.js';
 
+    const YELLOW = '#FFD400', BLACK = '#111111', INK = '#2b2b2b';
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const fmtAro = (x) => (Math.round(x * 100) / 100).toFixed(2);
 
-    const st = await (await fetch('/api/state')).json();
-    const card = document.getElementById('card');
-    if (!st.hasTournament) { card.innerHTML = '<p style="color:#8b98a9;font:14px sans-serif">尚未创建赛事</p>'; throw new Error('no tournament'); }
+    // CRTC 标志母题：错位双黑方块 + 棋盘圆（近似复刻视觉规范）
+    const logoSvg = (size = 64) => `
+      <svg class="logo" width="${size}" height="${size}" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+        <rect x="22" y="8" width="42" height="42" fill="${BLACK}"/>
+        <rect x="56" y="70" width="42" height="42" fill="${BLACK}"/>
+        <circle cx="60" cy="60" r="21" fill="${YELLOW}"/>
+        <path d="M60 39 A21 21 0 0 1 81 60 L60 60 Z" fill="${BLACK}"/>
+        <path d="M60 81 A21 21 0 0 1 39 60 L60 60 Z" fill="${BLACK}"/>
+        <path d="M60 47 A13 13 0 0 0 47 60 L60 60 Z" fill="${BLACK}"/>
+        <path d="M60 73 A13 13 0 0 0 73 60 L60 60 Z" fill="${BLACK}"/>
+      </svg>`;
 
-    const pending = st.pending;
-    const round = pending || [...st.state.swiss.rounds].reverse().find((r) => r.committed);
-    if (!round) { card.innerHTML = '<p style="color:#8b98a9;font:14px sans-serif">还没有任何对阵——先生成本轮对阵。</p>'; throw new Error('no round'); }
-    const nameOf = (id) => { const t = st.state.teams.find((x) => x.id === id); return t ? t.name : id; };
-    const total = round.pairings.length;
-
-    const promoted = new Set(round.promoted || []);
-    const demoted = new Set(round.demoted || []);
-    const tagOf = (id) => promoted.has(id) ? '<em class="tag up">上调</em>' : demoted.has(id) ? '<em class="tag dn">下调</em>' : '';
-    const rowsFinal = [...round.pairings].sort((a, b) => a.board - b.board).map((p) => {
-      const win = batchWindow(round.round, p.board, total);
-      const tags = [
-        tagOf(p.a), tagOf(p.b),
-        p.rematchOf ? '<em class="tag rk">重赛·第' + p.rematchOf + '轮</em>' : '',
-        p.rematchDefer ? '<em class="tag df">暂记平局·下轮重赛</em>' : '',
-        p.walkover ? '<em class="tag wo">' + (st.state.teams.find((t) => t.id === p.a)?.suspended || st.state.teams.find((t) => t.id === p.b)?.suspended ? '停赛判负' : '弃赛判负') + '</em>' : '',
-      ].join('');
-      const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : p.result === 'draw' ? '½:½' : '';
-      return `<tr>
-        <td class="bd">${String(p.board).padStart(2, '0')}</td>
-        <td class="tw">${win.day} ${win.time}</td>
-        <td class="va"><b>${esc(nameOf(p.a))}</b><i>ARO ${fmtAro(p.aroA)}</i></td>
-        <td class="vs">${res || 'VS'}</td>
-        <td class="vb"><b>${esc(nameOf(p.b))}</b><i>ARO ${fmtAro(p.aroB)}</i></td>
-        <td class="tg">${tags}</td>
-      </tr>`;
-    }).join('');
-
-    const byeRow = round.bye ? `<tr class="bye">
-        <td class="bd">—</td><td class="tw">轮空</td>
-        <td class="va" colspan="3"><b>${esc(nameOf(round.bye))}</b><i>本轮 ARO 项 = 除本组外对手均值 ${fmtAro(round.byeTerm ?? 0)}（条款 5.3.1）</i></td>
-        <td class="tg"></td>
-      </tr>` : '';
-
-    const genAt = new Date(round.generatedAt || Date.now()).toLocaleString('zh-CN', { hour12: false });
-
-    card.innerHTML = `
-    <style>
-      #card { width: 920px; max-width: 100%; background: #0b0f14; color: #fff; border: 1px solid #1f2937; padding: 28px 30px 22px; box-sizing: border-box;
-              font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
-      #card .head { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2px solid #fff; padding-bottom: 10px; }
-      #card .head h1 { margin: 0; font-size: 26px; letter-spacing: 2px; }
-      #card .head .sub { color: #8b98a9; font-size: 12px; letter-spacing: 2px; }
-      #card .meta { color: #8b98a9; font-size: 12px; margin: 8px 0 14px; display: flex; justify-content: space-between; }
+    const CARD_CSS = `
+      #card { width: 940px; max-width: 100%; box-sizing: border-box; background: ${YELLOW}; color: ${BLACK}; padding: 34px 36px 0; font-family: "Arial Black", "Microsoft YaHei", "PingFang SC", sans-serif; }
+      #card * { box-sizing: border-box; }
+      #card .head { display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid ${BLACK}; padding-bottom: 14px; }
+      #card .head .title { font-size: 40px; font-weight: 900; letter-spacing: 3px; line-height: 1; }
+      #card .head .sub { font-size: 13px; font-weight: 700; letter-spacing: 2px; margin-top: 6px; color: ${INK}; }
+      #card .meta { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 700; margin: 12px 0 14px; color: ${INK}; }
       #card table { width: 100%; border-collapse: collapse; }
-      #card th { text-align: left; font-size: 13px; color: #fff; padding: 8px 8px; border-bottom: 1px solid #34435a; white-space: nowrap; }
-      #card td { padding: 9px 8px; border-bottom: 1px solid #1a2330; font-size: 14px; vertical-align: middle; }
-      #card tr.bye td { border-bottom: 1px dashed #34435a; color: #c3ceda; }
-      #card .bd { font-family: Consolas, monospace; font-weight: 700; font-size: 15px; color: #e5edf5; width: 44px; }
-      #card .tw { white-space: nowrap; color: #aab7c6; font-size: 12.5px; width: 150px; }
-      #card .va, #card .vb { width: 250px; }
-      #card .va b, #card .vb b { font-size: 15px; }
-      #card .va i, #card .vb i { display: block; font-style: normal; color: #66788c; font-size: 11px; font-family: Consolas, monospace; }
-      #card .vs { text-align: center; color: #8b98a9; font-family: Consolas, monospace; font-weight: 700; white-space: nowrap; }
+      #card th { background: ${BLACK}; color: ${YELLOW}; font-size: 12.5px; letter-spacing: 2px; padding: 9px 10px; text-align: left; }
+      #card td { border-bottom: 2px solid ${BLACK}; padding: 9px 10px; font-size: 15px; font-weight: 700; vertical-align: middle; }
+      #card tr:last-child td { border-bottom: 4px solid ${BLACK}; }
+      #card .bd { font-family: Consolas, monospace; font-size: 17px; width: 52px; }
+      #card .tw { white-space: nowrap; font-family: Consolas, monospace; font-size: 13px; width: 170px; color: ${INK}; }
+      #card .va, #card .vb { width: 240px; }
+      #card .va i, #card .vb i { display: block; font-style: normal; font-family: Consolas, monospace; font-weight: 400; font-size: 11px; color: ${INK}; }
+      #card .vs { text-align: center; font-family: Consolas, monospace; white-space: nowrap; }
       #card .vb { text-align: right; } #card .vb i { text-align: right; }
       #card .tg { text-align: right; white-space: nowrap; }
-      #card .tag { font-style: normal; font-size: 10.5px; padding: 2px 6px; margin-left: 4px; border: 1px solid #34435a; color: #aab7c6; }
-      #card .tag.up { color: #f5b04c; border-color: #6b4d1e; }
-      #card .tag.dn { color: #6fa8dc; border-color: #2c4a6b; }
-      #card .tag.rk { color: #7ee0d2; border-color: #1f5a52; }
-      #card .tag.df { color: #c9a7ff; border-color: #4a3a6b; }
-      #card .tag.wo { color: #ff8f8f; border-color: #6b2c2c; }
-      #card .foot { display: flex; justify-content: space-between; color: #5b6b7e; font-size: 11px; margin-top: 14px; letter-spacing: 1px; }
-    </style>
-    <div class="head"><h1>第 ${round.round} 轮对阵</h1><span class="sub">PAIRINGS · ${total} 台</span></div>
-    <div class="meta">
-      <span>${esc(st.state.meta.name)} · ${st.swissProgress.done}/${st.swissProgress.total} 轮${pending ? ' · 待录入' : ' · 已确认'}</span>
-      <span>时间窗：${windowSummary(round.round, total)}</span>
-    </div>
-    <table>
-      <thead><tr><th>批次</th><th>时间段</th><th style="text-align:right">对阵 A</th><th style="text-align:center">结果</th><th>对阵 B</th><th style="text-align:right">标记</th></tr></thead>
-      <tbody>${rowsFinal}${byeRow}</tbody>
-    </table>
-    <div class="foot"><span>${esc(st.state.meta.name)} · DUBOV 赛事系统</span><span>生成于 ${genAt}</span></div>`;
+      #card .tag { display: inline-block; font-size: 10.5px; font-weight: 900; padding: 3px 7px; margin-left: 4px; border: 2px solid ${BLACK}; }
+      #card .tag.solid { background: ${BLACK}; color: ${YELLOW}; }
+      #card .bye td { border-bottom: 2px dashed ${BLACK}; background: rgba(0,0,0,.06); }
+      #card .tt { margin-top: 18px; border-top: 4px solid ${BLACK}; padding-top: 12px; }
+      #card .tt h3 { margin: 0 0 8px; font-size: 14px; letter-spacing: 2px; }
+      #card .tt .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 10px; font-family: Consolas, monospace; font-size: 11.5px; font-weight: 700; }
+      #card .tt .cell { border: 2px solid ${BLACK}; padding: 4px 8px; display: flex; justify-content: space-between; }
+      #card .tt .cell.seg2 { background: rgba(0,0,0,.08); }
+      #card .foot { display: flex; justify-content: space-between; align-items: center; background: ${BLACK}; color: ${YELLOW}; margin: 22px -36px 0; padding: 12px 36px; font-size: 12px; letter-spacing: 2px; font-weight: 700; }
+      #card .rk { font-family: Consolas, monospace; font-size: 19px; width: 56px; }
+      #card tr.top8 td { background: rgba(0,0,0,.10); }
+      #card .score { font-size: 18px; }
+    `;
 
-    document.title = `${st.state.meta.name} 第${round.round}轮对阵`;
+    const st = await (await fetch('/api/state')).json();
+    const card = document.getElementById('card');
+    if (!st.hasTournament) { card.innerHTML = '<p style="color:#FFD400;font:14px sans-serif">尚未创建赛事</p>'; throw new Error('no tournament'); }
+    const nameOf = (id) => { const t = st.state.teams.find((x) => x.id === id); return t ? t.name : id; };
+
+    function headHtml(title, sub) {
+      return `<div class="head">
+        <div><div class="title">${title}</div><div class="sub">${sub}</div></div>
+        ${logoSvg(88)}
+      </div>`;
+    }
+    function footHtml() {
+      return `<div class="foot"><span>${esc(st.state.meta.name)} · CRTC × DUBOV 赛事系统</span><span>生成于 ${new Date().toLocaleString('zh-CN', { hour12: false })}</span></div>`;
+    }
+
+    // ---------- 对阵卡 ----------
+    function roundCard() {
+      const pending = st.pending;
+      const round = pending || [...st.state.swiss.rounds].reverse().find((r) => r.committed);
+      if (!round) return `<div class="head"><div class="title">暂无对阵</div></div><p style="font-weight:700">请先在系统中生成本轮对阵。</p>${footHtml()}`;
+      const total = round.pairings.length;
+      const promoted = new Set(round.promoted || []);
+      const demoted = new Set(round.demoted || []);
+      const tagOf = (id) => promoted.has(id) ? '<em class="tag">上调</em>' : demoted.has(id) ? '<em class="tag">下调</em>' : '';
+      const rows = [...round.pairings].sort((a, b) => a.board - b.board).map((p) => {
+        const w = batchWindow(round.round, p.board, total);
+        const wo = p.walkover ? `<em class="tag solid">${st.state.teams.find((t) => t.id === p.a)?.suspended || st.state.teams.find((t) => t.id === p.b)?.suspended ? '停赛判负' : '弃赛判负'}</em>` : '';
+        const tags = `${tagOf(p.a)}${tagOf(p.b)}${p.rematchOf ? '<em class="tag solid">重赛·第' + p.rematchOf + '轮</em>' : ''}${p.rematchDefer ? '<em class="tag solid">暂记平局·下轮重赛</em>' : ''}${wo}`;
+        const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : p.result === 'draw' ? '½:½' : 'VS';
+        return `<tr>
+          <td class="bd">${String(p.board).padStart(2, '0')}</td>
+          <td class="tw">批次${String(w.batch).padStart(2, '0')} · ${w.day}<br>${w.start}–${w.end}</td>
+          <td class="va"><b>${esc(nameOf(p.a))}</b><i>ARO ${fmtAro(p.aroA)}</i></td>
+          <td class="vs">${res}</td>
+          <td class="vb"><b>${esc(nameOf(p.b))}</b><i>ARO ${fmtAro(p.aroB)}</i></td>
+          <td class="tg">${tags}</td>
+        </tr>`;
+      }).join('');
+      const byeRow = round.bye ? `<tr class="bye">
+        <td class="bd">—</td><td class="tw">轮空</td>
+        <td class="va" colspan="3"><b>${esc(nameOf(round.bye))}</b><i>本轮 ARO 项 = 除本组外对手均值 ${fmtAro(round.byeTerm ?? 0)}（条款 5.3.1）</i></td>
+        <td class="tg"></td></tr>` : '';
+      const tt = fullTimetable(round.round).map((b) =>
+        `<span class="cell ${b.seg === '后段' ? 'seg2' : ''}"><span>批次${String(b.batch).padStart(2, '0')}</span><span>${b.start}–${b.end}</span></span>`).join('');
+      return `${headHtml(`第 ${round.round} 轮对阵`, `PAIRINGS · ${total} 台`)}
+      <div class="meta">
+        <span>${esc(st.state.meta.name)} · 瑞士轮 ${st.swissProgress.done}/${st.swissProgress.total}${pending ? ' · 待录入' : ' · 已确认'}</span>
+        <span>${windowSummary(round.round, total)}</span>
+      </div>
+      <table>
+        <thead><tr><th>台</th><th>批次 / 时间</th><th style="text-align:right">A</th><th style="text-align:center">结果</th><th>B</th><th style="text-align:right">标记</th></tr></thead>
+        <tbody>${rows}${byeRow}</tbody>
+      </table>
+      <div class="tt"><h3>本批次时间总表（每 19 分钟一批 · 打 9 分钟歇 10 分钟）</h3><div class="grid">${tt}</div></div>
+      ${footHtml()}`;
+    }
+
+    // ---------- 排名卡 ----------
+    function standingsCard() {
+      const rows = st.standings.filter((r) => !r.withdrawn && !r.suspended);
+      const trs = rows.map((r, i) => `<tr class="${r.rank <= 8 ? 'top8' : ''}">
+          <td class="rk">${String(r.rank).padStart(2, '0')}</td>
+          <td><b>${esc(r.team.name)}</b></td>
+          <td class="score">${fmtAro(r.score)}</td>
+          <td>${fmtAro(r.aro)}</td>
+          <td style="font-family:Consolas,monospace">${r.wins}-${r.draws}-${r.losses}</td>
+          <td style="font-family:Consolas,monospace">${r.byes ? '+' + r.byes : '—'}</td>
+        </tr>`).join('');
+      return `${headHtml('实时排名', `STANDINGS · ${rows.length} 队`)}
+      <div class="meta">
+        <span>${esc(st.state.meta.name)} · 瑞士轮 ${st.swissProgress.done}/${st.swissProgress.total} · 排序：积分 → ARO（条款 5.1/5.2）</span>
+        <span>前 8 名底纹 = 淘汰赛录取线（条款 5.2）</span>
+      </div>
+      <table>
+        <thead><tr><th>名次</th><th>队伍</th><th>积分</th><th>ARO</th><th>胜-平-负</th><th>轮空</th></tr></thead>
+        <tbody>${trs}</tbody>
+      </table>
+      ${footHtml()}`;
+    }
+
+    const tabs = { round: roundCard, standings: standingsCard };
+    let current = 'round';
+    function show(tab) {
+      current = tab;
+      card.innerHTML = `<style>${CARD_CSS}</style>` + tabs[tab]();
+      document.getElementById('tab-round').classList.toggle('on', tab === 'round');
+      document.getElementById('tab-standings').classList.toggle('on', tab === 'standings');
+      const name = st.state.meta.name;
+      document.title = tab === 'round'
+        ? (st.pending ? `${name} 第${st.pending.round}轮对阵` : `${name} 对阵`)
+        : `${name} 实时排名`;
+    }
+    show(new URLSearchParams(location.search).get('tab') === 'standings' ? 'standings' : 'round');
+    document.getElementById('tab-round').addEventListener('click', () => show('round'));
+    document.getElementById('tab-standings').addEventListener('click', () => show('standings'));
 
     document.getElementById('btn-png').addEventListener('click', async () => {
       const w = card.offsetWidth, h = card.offsetHeight, dpr = 2;
@@ -124,7 +191,7 @@
       c.toBlob((b) => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(b);
-        a.download = `${st.state.meta.name}第${round.round}轮对阵.png`;
+        a.download = `${st.state.meta.name}${document.title.replace(st.state.meta.name, '')}.png`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
       }, 'image/png');
