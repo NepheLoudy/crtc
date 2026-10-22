@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CRTC · 渲染导出</title>
 <style>
-  body { margin: 0; background: #2b2b2b; display: flex; flex-direction: column; align-items: center; padding: 24px 12px 48px; }
+  body { margin: 0; background: #e9e9e9; display: flex; flex-direction: column; align-items: center; padding: 24px 12px 48px; }
   .toolbar { width: 940px; max-width: 100%; display: flex; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
   .toolbar .grp { display: flex; gap: 8px; }
   .toolbar a, .toolbar button {
-    font: 700 13px/1 "Arial Black", "Microsoft YaHei", sans-serif; color: #FFD400; text-decoration: none;
-    background: #1c1c1c; border: 2px solid #FFD400; padding: 10px 16px; cursor: pointer;
+    font: 700 13px/1 "Segoe UI", "Microsoft YaHei", sans-serif; color: #111; text-decoration: none;
+    background: #fff; border: 2px solid #111; padding: 9px 16px; cursor: pointer;
   }
-  .toolbar button.on { background: #FFD400; color: #111; }
-  .toolbar button:not(.on):hover, .toolbar a:hover { background: #333; }
-  @media print { .toolbar { display: none; } body { padding: 0; background: #FFD400; } }
+  .toolbar button.on { background: #FFD400; }
+  .toolbar a:hover, .toolbar button:not(.on):hover { background: #FFD400; }
+  @media print { .toolbar { display: none; } body { padding: 0; background: #fff; } }
 </style>
 </head>
 <body>
@@ -32,63 +32,59 @@
   <script type="module">
     import { batchWindow, windowSummary, fullTimetable } from '/js/schedule.js';
 
-    const YELLOW = '#FFD400', BLACK = '#111111', INK = '#2b2b2b';
+    const Y = '#FFD400', K = '#111111', INK = '#2b2b2b';
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const fmtAro = (x) => (Math.round(x * 100) / 100).toFixed(2);
 
-    // CRTC 标志母题：错位双黑方块 + 棋盘圆（近似复刻视觉规范）
-    const logoSvg = (size = 64) => `
-      <svg class="logo" width="${size}" height="${size}" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-        <rect x="22" y="8" width="42" height="42" fill="${BLACK}"/>
-        <rect x="56" y="70" width="42" height="42" fill="${BLACK}"/>
-        <circle cx="60" cy="60" r="21" fill="${YELLOW}"/>
-        <path d="M60 39 A21 21 0 0 1 81 60 L60 60 Z" fill="${BLACK}"/>
-        <path d="M60 81 A21 21 0 0 1 39 60 L60 60 Z" fill="${BLACK}"/>
-        <path d="M60 47 A13 13 0 0 0 47 60 L60 60 Z" fill="${BLACK}"/>
-        <path d="M60 73 A13 13 0 0 0 73 60 L60 60 Z" fill="${BLACK}"/>
-      </svg>`;
+    // 正版方形 logo 转 data URI（PNG 导出时 foreignObject 只认内联图）
+    const logoDataUri = await fetch('/crtc-logo.jpg').then((r) => r.blob())
+      .then((b) => new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }));
 
     const CARD_CSS = `
-      #card { width: 940px; max-width: 100%; box-sizing: border-box; background: ${YELLOW}; color: ${BLACK}; padding: 34px 36px 0; font-family: "Arial Black", "Microsoft YaHei", "PingFang SC", sans-serif; }
+      #card { width: 940px; max-width: 100%; box-sizing: border-box; background: #ffffff; color: ${K}; border: 1px solid ${K}; font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
       #card * { box-sizing: border-box; }
-      #card .head { display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid ${BLACK}; padding-bottom: 14px; }
+      #card .brand { height: 14px; background: ${Y}; border-bottom: 2px solid ${K}; }
+      #card .inner { padding: 26px 32px 0; }
+      #card .head { display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid ${K}; padding-bottom: 16px; }
+      #card .head img.logo { width: 96px; height: 96px; border: 2px solid ${K}; flex: none; }
       #card .head .title { font-size: 40px; font-weight: 900; letter-spacing: 3px; line-height: 1; }
-      #card .head .sub { font-size: 13px; font-weight: 700; letter-spacing: 2px; margin-top: 6px; color: ${INK}; }
+      #card .head .sub { font-size: 13px; font-weight: 700; letter-spacing: 2px; margin-top: 8px; color: ${INK}; }
       #card .meta { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 700; margin: 12px 0 14px; color: ${INK}; }
       #card table { width: 100%; border-collapse: collapse; }
-      #card th { background: ${BLACK}; color: ${YELLOW}; font-size: 12.5px; letter-spacing: 2px; padding: 9px 10px; text-align: left; }
-      #card td { border-bottom: 2px solid ${BLACK}; padding: 9px 10px; font-size: 15px; font-weight: 700; vertical-align: middle; }
-      #card tr:last-child td { border-bottom: 4px solid ${BLACK}; }
-      #card .bd { font-family: Consolas, monospace; font-size: 17px; width: 52px; }
-      #card .tw { white-space: nowrap; font-family: Consolas, monospace; font-size: 13px; width: 170px; color: ${INK}; }
+      #card th { background: ${Y}; color: ${K}; font-size: 12.5px; letter-spacing: 2px; padding: 9px 10px; text-align: left; border-bottom: 3px solid ${K}; }
+      #card td { border-bottom: 2px solid ${K}; padding: 9px 10px; font-size: 15px; font-weight: 600; vertical-align: middle; background: #fff; }
+      #card tr:last-child td { border-bottom: 3px solid ${K}; }
+      #card .bd { font-family: Consolas, monospace; font-size: 17px; font-weight: 700; width: 52px; }
+      #card .tw { white-space: nowrap; font-family: Consolas, monospace; font-size: 13px; font-weight: 400; width: 168px; color: ${INK}; }
       #card .va, #card .vb { width: 240px; }
       #card .va i, #card .vb i { display: block; font-style: normal; font-family: Consolas, monospace; font-weight: 400; font-size: 11px; color: ${INK}; }
-      #card .vs { text-align: center; font-family: Consolas, monospace; white-space: nowrap; }
+      #card .vs { text-align: center; font-family: Consolas, monospace; font-weight: 700; white-space: nowrap; }
       #card .vb { text-align: right; } #card .vb i { text-align: right; }
       #card .tg { text-align: right; white-space: nowrap; }
-      #card .tag { display: inline-block; font-size: 10.5px; font-weight: 900; padding: 3px 7px; margin-left: 4px; border: 2px solid ${BLACK}; }
-      #card .tag.solid { background: ${BLACK}; color: ${YELLOW}; }
-      #card .bye td { border-bottom: 2px dashed ${BLACK}; background: rgba(0,0,0,.06); }
-      #card .tt { margin-top: 18px; border-top: 4px solid ${BLACK}; padding-top: 12px; }
+      #card .tag { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 3px 7px; margin-left: 4px; border: 2px solid ${K}; background: #fff; color: ${K}; }
+      #card .tag.solid { background: ${K}; color: ${Y}; }
+      #card tr.bye td { border-bottom: 2px dashed ${K}; color: ${INK}; background: #fff; }
+      #card tr.top8 td { background: #FFF6CC; }
+      #card tr.top8 td:first-child { box-shadow: inset 5px 0 0 ${Y}; }
+      #card .tt { margin-top: 18px; }
       #card .tt h3 { margin: 0 0 8px; font-size: 14px; letter-spacing: 2px; }
       #card .tt .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 10px; font-family: Consolas, monospace; font-size: 11.5px; font-weight: 700; }
-      #card .tt .cell { border: 2px solid ${BLACK}; padding: 4px 8px; display: flex; justify-content: space-between; }
-      #card .tt .cell.seg2 { background: rgba(0,0,0,.08); }
-      #card .foot { display: flex; justify-content: space-between; align-items: center; background: ${BLACK}; color: ${YELLOW}; margin: 22px -36px 0; padding: 12px 36px; font-size: 12px; letter-spacing: 2px; font-weight: 700; }
-      #card .rk { font-family: Consolas, monospace; font-size: 19px; width: 56px; }
-      #card tr.top8 td { background: rgba(0,0,0,.10); }
-      #card .score { font-size: 18px; }
+      #card .tt .cell { border: 2px solid ${K}; padding: 4px 8px; display: flex; justify-content: space-between; background: #fff; }
+      #card .tt .cell.seg2 { background: ${Y}; }
+      #card .foot { display: flex; justify-content: space-between; align-items: center; background: ${K}; color: #fff; margin: 24px -32px 0; padding: 12px 32px; font-size: 12px; letter-spacing: 2px; font-weight: 700; }
+      #card .rk { font-family: Consolas, monospace; font-size: 19px; font-weight: 700; width: 56px; }
+      #card .score { font-size: 18px; font-weight: 900; }
     `;
 
     const st = await (await fetch('/api/state')).json();
     const card = document.getElementById('card');
-    if (!st.hasTournament) { card.innerHTML = '<p style="color:#FFD400;font:14px sans-serif">尚未创建赛事</p>'; throw new Error('no tournament'); }
+    if (!st.hasTournament) { card.innerHTML = '<p style="font:14px sans-serif">尚未创建赛事</p>'; throw new Error('no tournament'); }
     const nameOf = (id) => { const t = st.state.teams.find((x) => x.id === id); return t ? t.name : id; };
 
     function headHtml(title, sub) {
       return `<div class="head">
         <div><div class="title">${title}</div><div class="sub">${sub}</div></div>
-        ${logoSvg(88)}
+        <img class="logo" src="${logoDataUri}" alt="CRTC">
       </div>`;
     }
     function footHtml() {
@@ -99,7 +95,7 @@
     function roundCard() {
       const pending = st.pending;
       const round = pending || [...st.state.swiss.rounds].reverse().find((r) => r.committed);
-      if (!round) return `<div class="head"><div class="title">暂无对阵</div></div><p style="font-weight:700">请先在系统中生成本轮对阵。</p>${footHtml()}`;
+      if (!round) return `<div class="head"><div class="title">暂无对阵</div></div><p style="font-weight:700;padding-bottom:20px">请先在系统中生成本轮对阵。</p>${footHtml()}`;
       const total = round.pairings.length;
       const promoted = new Set(round.promoted || []);
       const demoted = new Set(round.demoted || []);
@@ -124,7 +120,8 @@
         <td class="tg"></td></tr>` : '';
       const tt = fullTimetable(round.round).map((b) =>
         `<span class="cell ${b.seg === '后段' ? 'seg2' : ''}"><span>批次${String(b.batch).padStart(2, '0')}</span><span>${b.start}–${b.end}</span></span>`).join('');
-      return `${headHtml(`第 ${round.round} 轮对阵`, `PAIRINGS · ${total} 台`)}
+      return `<div class="brand"></div><div class="inner">
+      ${headHtml(`第 ${round.round} 轮对阵`, `PAIRINGS · ${total} 台`)}
       <div class="meta">
         <span>${esc(st.state.meta.name)} · 瑞士轮 ${st.swissProgress.done}/${st.swissProgress.total}${pending ? ' · 待录入' : ' · 已确认'}</span>
         <span>${windowSummary(round.round, total)}</span>
@@ -134,13 +131,13 @@
         <tbody>${rows}${byeRow}</tbody>
       </table>
       <div class="tt"><h3>本批次时间总表（每 19 分钟一批 · 打 9 分钟歇 10 分钟）</h3><div class="grid">${tt}</div></div>
-      ${footHtml()}`;
+      ${footHtml()}</div>`;
     }
 
     // ---------- 排名卡 ----------
     function standingsCard() {
       const rows = st.standings.filter((r) => !r.withdrawn && !r.suspended);
-      const trs = rows.map((r, i) => `<tr class="${r.rank <= 8 ? 'top8' : ''}">
+      const trs = rows.map((r) => `<tr class="${r.rank <= 8 ? 'top8' : ''}">
           <td class="rk">${String(r.rank).padStart(2, '0')}</td>
           <td><b>${esc(r.team.name)}</b></td>
           <td class="score">${fmtAro(r.score)}</td>
@@ -148,16 +145,17 @@
           <td style="font-family:Consolas,monospace">${r.wins}-${r.draws}-${r.losses}</td>
           <td style="font-family:Consolas,monospace">${r.byes ? '+' + r.byes : '—'}</td>
         </tr>`).join('');
-      return `${headHtml('实时排名', `STANDINGS · ${rows.length} 队`)}
+      return `<div class="brand"></div><div class="inner">
+      ${headHtml('实时排名', `STANDINGS · ${rows.length} 队`)}
       <div class="meta">
         <span>${esc(st.state.meta.name)} · 瑞士轮 ${st.swissProgress.done}/${st.swissProgress.total} · 排序：积分 → ARO（条款 5.1/5.2）</span>
-        <span>前 8 名底纹 = 淘汰赛录取线（条款 5.2）</span>
+        <span>黄底纹 = 前 8 淘汰赛录取线（条款 5.2）</span>
       </div>
       <table>
         <thead><tr><th>名次</th><th>队伍</th><th>积分</th><th>ARO</th><th>胜-平-负</th><th>轮空</th></tr></thead>
         <tbody>${trs}</tbody>
       </table>
-      ${footHtml()}`;
+      ${footHtml()}</div>`;
     }
 
     const tabs = { round: roundCard, standings: standingsCard };
