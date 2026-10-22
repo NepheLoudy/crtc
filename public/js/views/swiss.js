@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { can } from '../main.js';
 import { esc, fmtAro, fmtPts, teamName, $ } from '../ui.js';
+import { batchWindow, windowSummary } from '../schedule.js';
 
 export function renderSwiss(el, d) {
   if (!d.hasTournament) {
@@ -54,7 +55,7 @@ function pendingHtml(d, p) {
   const demoted = new Set(p.demoted || []);
   const resultsIn = p.pairings.every((x) => x.result);
   const canScore = can('referee');
-  const pairs = p.pairings.map((x, i) => pairRow(d, x, promoted, demoted, i, canScore)).join('');
+  const pairs = p.pairings.map((x, i) => pairRow(d, x, promoted, demoted, i, canScore, p.round, p.pairings.length)).join('');
   const bye = p.bye ? `
     <div class="pairing" style="border-style:dashed">
       <div class="board-no">—</div>
@@ -74,9 +75,11 @@ function pendingHtml(d, p) {
         <h2>第 ${p.round} 轮对阵</h2>
         <span class="sub">PAIRINGS · ${p.pairings.length} 台</span>
         <span class="sp">
+          <a class="btn btn-sm" href="/round.html" target="_blank" title="渲染本轮对阵卡片（含批次时间窗），可导出图片 / 打印">⬒ 渲染导出</a>
           ${can('admin') ? '<button class="btn btn-sm" id="regen-round">重新生成</button>' : ''}
         </span>
       </div>
+      <p class="hint" style="margin:0 0 10px">时间窗（第 ${Math.ceil(p.round / 2)} 天）：${windowSummary(p.round, p.pairings.length)}</p>
       ${p.warnings?.length ? `<div class="banner red">⚠ ${p.warnings.map(esc).join('<br>⚠ ')}</div>` : ''}
       ${bye}
       ${pairs}
@@ -106,23 +109,27 @@ function subFormHtml(d) {
     </div>`;
 }
 
-function pairRow(d, p, promoted, demoted, i, canScore) {
+function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
   const aWin = p.result === 'a';
   const bWin = p.result === 'b';
   const draw = p.result === 'draw';
   const isAdmin = can('admin');
   const rematched = !!p.rematchOf;
   const deferred = !!p.rematchDefer;
+  const win = batchWindow(roundNo, p.board, total);
   let seg;
   if (canScore) {
     const rmBtn = (deferred || rematched) ? '' :
       `<button class="btn-reset" data-rematch-board="${p.board}" title="重赛：本轮立刻重赛，或登记下轮再重赛（管理员）">↺<i>重赛</i></button>`;
+    // seg 与重赛键包进同一网格单元，避免挤占 .pairing 的五列布局
     seg = `
-    <span class="seg" data-board="${p.board}">
-      <button class="${aWin ? 'on-a' : ''}" data-res="a" title="左边队伍胜">胜</button>
-      <button class="${draw ? 'on-d' : ''}" data-res="draw">平</button>
-      <button class="${bWin ? 'on-b' : ''}" data-res="b" title="右边队伍胜">胜</button>
-    </span>${rmBtn}`;
+    <span class="segwrap">
+      <span class="seg" data-board="${p.board}">
+        <button class="${aWin ? 'on-a' : ''}" data-res="a" title="左边队伍胜">胜</button>
+        <button class="${draw ? 'on-d' : ''}" data-res="draw">平</button>
+        <button class="${bWin ? 'on-b' : ''}" data-res="b" title="右边队伍胜">胜</button>
+      </span>${rmBtn}
+    </span>`;
   } else {
     seg = `<span class="vs-sep">${aWin ? '1:0' : bWin ? '0:1' : draw ? '½:½' : 'VS'}</span>`;
   }
@@ -143,7 +150,7 @@ function pairRow(d, p, promoted, demoted, i, canScore) {
   ].join('');
   return `
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
-      <div class="board-no">${String(p.board).padStart(2, '0')}</div>
+      <div class="board-no">${String(p.board).padStart(2, '0')}<span class="bt">${win.day} ${win.time}</span></div>
       <div class="side left">
         <span class="nmrow"><span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>${susp(p.a)}</span>
         <span class="aro">ARO ${fmtAro(p.aroA)}</span>

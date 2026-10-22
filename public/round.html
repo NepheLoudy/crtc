@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>本轮对阵 · 渲染导出</title>
+<style>
+  body { margin: 0; background: #07090d; display: flex; flex-direction: column; align-items: center; padding: 24px 12px 40px; }
+  .toolbar { width: 920px; max-width: 100%; display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 12px; }
+  .toolbar a, .toolbar button {
+    font: 600 13px/1 "Segoe UI", "Microsoft YaHei", sans-serif; color: #fff; text-decoration: none;
+    background: #1a2230; border: 1px solid #2c3a4f; padding: 9px 16px; cursor: pointer; border-radius: 4px;
+  }
+  .toolbar button.primary { background: #2563eb; border-color: #2563eb; }
+  .toolbar a:hover, .toolbar button:hover { filter: brightness(1.15); }
+  @media print { .toolbar { display: none; } body { padding: 0; background: #07090d; } }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <a href="/">← 返回系统</a>
+    <button class="primary" id="btn-png">⬇ 保存为图片</button>
+  </div>
+  <div id="card"></div>
+  <script type="module">
+    import { batchWindow, windowSummary } from '/js/schedule.js';
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const fmtAro = (x) => (Math.round(x * 100) / 100).toFixed(2);
+
+    const st = await (await fetch('/api/state')).json();
+    const card = document.getElementById('card');
+    if (!st.hasTournament) { card.innerHTML = '<p style="color:#8b98a9;font:14px sans-serif">尚未创建赛事</p>'; throw new Error('no tournament'); }
+
+    const pending = st.pending;
+    const round = pending || [...st.state.swiss.rounds].reverse().find((r) => r.committed);
+    if (!round) { card.innerHTML = '<p style="color:#8b98a9;font:14px sans-serif">还没有任何对阵——先生成本轮对阵。</p>'; throw new Error('no round'); }
+    const nameOf = (id) => { const t = st.state.teams.find((x) => x.id === id); return t ? t.name : id; };
+    const total = round.pairings.length;
+
+    const promoted = new Set(round.promoted || []);
+    const demoted = new Set(round.demoted || []);
+    const tagOf = (id) => promoted.has(id) ? '<em class="tag up">上调</em>' : demoted.has(id) ? '<em class="tag dn">下调</em>' : '';
+    const rowsFinal = [...round.pairings].sort((a, b) => a.board - b.board).map((p) => {
+      const win = batchWindow(round.round, p.board, total);
+      const tags = [
+        tagOf(p.a), tagOf(p.b),
+        p.rematchOf ? '<em class="tag rk">重赛·第' + p.rematchOf + '轮</em>' : '',
+        p.rematchDefer ? '<em class="tag df">暂记平局·下轮重赛</em>' : '',
+        p.walkover ? '<em class="tag wo">' + (st.state.teams.find((t) => t.id === p.a)?.suspended || st.state.teams.find((t) => t.id === p.b)?.suspended ? '停赛判负' : '弃赛判负') + '</em>' : '',
+      ].join('');
+      const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : p.result === 'draw' ? '½:½' : '';
+      return `<tr>
+        <td class="bd">${String(p.board).padStart(2, '0')}</td>
+        <td class="tw">${win.day} ${win.time}</td>
+        <td class="va"><b>${esc(nameOf(p.a))}</b><i>ARO ${fmtAro(p.aroA)}</i></td>
+        <td class="vs">${res || 'VS'}</td>
+        <td class="vb"><b>${esc(nameOf(p.b))}</b><i>ARO ${fmtAro(p.aroB)}</i></td>
+        <td class="tg">${tags}</td>
+      </tr>`;
+    }).join('');
+
+    const byeRow = round.bye ? `<tr class="bye">
+        <td class="bd">—</td><td class="tw">轮空</td>
+        <td class="va" colspan="3"><b>${esc(nameOf(round.bye))}</b><i>本轮 ARO 项 = 除本组外对手均值 ${fmtAro(round.byeTerm ?? 0)}（条款 5.3.1）</i></td>
+        <td class="tg"></td>
+      </tr>` : '';
+
+    const genAt = new Date(round.generatedAt || Date.now()).toLocaleString('zh-CN', { hour12: false });
+
+    card.innerHTML = `
+    <style>
+      #card { width: 920px; max-width: 100%; background: #0b0f14; color: #fff; border: 1px solid #1f2937; padding: 28px 30px 22px; box-sizing: border-box;
+              font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
+      #card .head { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2px solid #fff; padding-bottom: 10px; }
+      #card .head h1 { margin: 0; font-size: 26px; letter-spacing: 2px; }
+      #card .head .sub { color: #8b98a9; font-size: 12px; letter-spacing: 2px; }
+      #card .meta { color: #8b98a9; font-size: 12px; margin: 8px 0 14px; display: flex; justify-content: space-between; }
+      #card table { width: 100%; border-collapse: collapse; }
+      #card th { text-align: left; font-size: 13px; color: #fff; padding: 8px 8px; border-bottom: 1px solid #34435a; white-space: nowrap; }
+      #card td { padding: 9px 8px; border-bottom: 1px solid #1a2330; font-size: 14px; vertical-align: middle; }
+      #card tr.bye td { border-bottom: 1px dashed #34435a; color: #c3ceda; }
+      #card .bd { font-family: Consolas, monospace; font-weight: 700; font-size: 15px; color: #e5edf5; width: 44px; }
+      #card .tw { white-space: nowrap; color: #aab7c6; font-size: 12.5px; width: 150px; }
+      #card .va, #card .vb { width: 250px; }
+      #card .va b, #card .vb b { font-size: 15px; }
+      #card .va i, #card .vb i { display: block; font-style: normal; color: #66788c; font-size: 11px; font-family: Consolas, monospace; }
+      #card .vs { text-align: center; color: #8b98a9; font-family: Consolas, monospace; font-weight: 700; white-space: nowrap; }
+      #card .vb { text-align: right; } #card .vb i { text-align: right; }
+      #card .tg { text-align: right; white-space: nowrap; }
+      #card .tag { font-style: normal; font-size: 10.5px; padding: 2px 6px; margin-left: 4px; border: 1px solid #34435a; color: #aab7c6; }
+      #card .tag.up { color: #f5b04c; border-color: #6b4d1e; }
+      #card .tag.dn { color: #6fa8dc; border-color: #2c4a6b; }
+      #card .tag.rk { color: #7ee0d2; border-color: #1f5a52; }
+      #card .tag.df { color: #c9a7ff; border-color: #4a3a6b; }
+      #card .tag.wo { color: #ff8f8f; border-color: #6b2c2c; }
+      #card .foot { display: flex; justify-content: space-between; color: #5b6b7e; font-size: 11px; margin-top: 14px; letter-spacing: 1px; }
+    </style>
+    <div class="head"><h1>第 ${round.round} 轮对阵</h1><span class="sub">PAIRINGS · ${total} 台</span></div>
+    <div class="meta">
+      <span>${esc(st.state.meta.name)} · ${st.swissProgress.done}/${st.swissProgress.total} 轮${pending ? ' · 待录入' : ' · 已确认'}</span>
+      <span>时间窗：${windowSummary(round.round, total)}</span>
+    </div>
+    <table>
+      <thead><tr><th>批次</th><th>时间段</th><th style="text-align:right">对阵 A</th><th style="text-align:center">结果</th><th>对阵 B</th><th style="text-align:right">标记</th></tr></thead>
+      <tbody>${rowsFinal}${byeRow}</tbody>
+    </table>
+    <div class="foot"><span>${esc(st.state.meta.name)} · DUBOV 赛事系统</span><span>生成于 ${genAt}</span></div>`;
+
+    document.title = `${st.state.meta.name} 第${round.round}轮对阵`;
+
+    document.getElementById('btn-png').addEventListener('click', async () => {
+      const w = card.offsetWidth, h = card.offsetHeight, dpr = 2;
+      const xml = new XMLSerializer().serializeToString(card);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`;
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('渲染失败，请改用截图或 Ctrl+P 打印')); });
+      const c = document.createElement('canvas');
+      c.width = w * dpr; c.height = h * dpr;
+      const ctx = c.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.drawImage(img, 0, 0, w, h);
+      c.toBlob((b) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = `${st.state.meta.name}第${round.round}轮对阵.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }, 'image/png');
+    });
+  </script>
+</body>
+</html>

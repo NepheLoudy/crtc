@@ -295,7 +295,7 @@ select { cursor: pointer; }
 
 .pairing {
   display: grid;
-  grid-template-columns: 44px 1fr auto 1fr 30px;
+  grid-template-columns: 92px 1fr auto 1fr 30px;
   gap: 12px; align-items: center;
   padding: 11px 14px;
   border: 1px solid var(--line);
@@ -306,6 +306,12 @@ select { cursor: pointer; }
   font-family: var(--font-mono); font-weight: 600; font-size: 15px; color: var(--faint);
   text-align: center;
 }
+.pairing .board-no .bt {
+  display: block; font-family: var(--font-mono); font-weight: 400;
+  font-size: 9px; letter-spacing: 0; color: var(--faint);
+  white-space: nowrap; margin-top: 3px;
+}
+.segwrap { display: inline-flex; align-items: center; gap: 6px; }
 .pairing .side { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pairing .side .nm { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pairing .side .aro { font-family: var(--font-mono); font-size: 10.5px; color: var(--faint); }
