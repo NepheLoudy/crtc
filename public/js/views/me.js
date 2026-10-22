@@ -4,6 +4,7 @@
 import { api, toast } from '../api.js';
 import { app, can } from '../main.js';
 import { esc, fmtAro, fmtPts, fmtTime, $ } from '../ui.js';
+import { batchWindow, venueOf } from '../schedule.js';
 
 export function renderMe(el, d) {
   if (!can('player')) {
@@ -57,16 +58,19 @@ export function renderMe(el, d) {
 
       <div class="panel corner">
         <div class="phead"><h2>本轮对阵</h2><span class="sub">ROUND ${pending ? pending.round : '—'}</span></div>
-        ${pending && myPair ? `
-          <div class="pairing">
-            <div class="board-no">${String(myPair.board).padStart(2, '0')}</div>
+        ${pending && myPair ? (() => {
+          const win = batchWindow(pending.round, myPair.board, pending.pairings.length);
+          const venue = venueOf(myPair.board, pending.pairings.length);
+          return `<div class="pairing">
+            <div class="board-no"><span class="venue ${venue.key === 'A' ? 'vA' : 'vB'}">${venue.name}</span>${String(myPair.board).padStart(2, '0')}<span class="bt">${win.day} ${win.label}</span></div>
             <div class="side left"><span class="nm ${myPair.result === 'a' ? 'amber' : ''}">${esc(teamNameOf(d, myPair.a))}</span><span class="aro">ARO ${fmtAro(myPair.aroA)}</span></div>
             <span class="vs-sep">${myPair.result === 'a' ? '1:0' : myPair.result === 'b' ? '0:1' : myPair.result === 'draw' ? '½:½' : 'VS'}</span>
             <div class="side right"><span class="nm ${myPair.result === 'b' ? 'cy' : ''}">${esc(teamNameOf(d, myPair.b))}</span><span class="aro">ARO ${fmtAro(myPair.aroB)}</span></div>
             <div></div>
           </div>
-          ${myPair.board === pending.pairings.length && pending.pairings.length > 1 ? '<p class="hint">本队场次为本轮最后一台（可能经场次调换）。</p>' : ''}
-        ` : `<div class="empty">${pending ? '本轮没有本队对局（轮空或已退赛）' : d.swissDone ? '瑞士轮已结束' : '等待管理员生成对阵'}</div>`}
+          <p class="hint">请提前 10 分钟到达<strong>${venue.name}</strong>候场（批次 ${String(win.batch).padStart(2, '0')} · ${win.day} ${win.start}–${win.end}）。</p>
+          ${myPair.board === pending.pairings.length && pending.pairings.length > 1 ? '<p class="hint">本队场次为本轮最后一台（可能经场次调换）。</p>' : ''}`; })()
+        : `<div class="empty">${pending ? '本轮没有本队对局（轮空或已退赛）' : d.swissDone ? '瑞士轮已结束' : '等待管理员生成对阵'}</div>`}
       </div>
     </div>
 

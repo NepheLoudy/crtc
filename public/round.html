@@ -30,7 +30,7 @@
   </div>
   <div id="card"></div>
   <script type="module">
-    import { batchWindow, windowSummary, fullTimetable } from '/js/schedule.js';
+    import { batchWindow, windowSummary, fullTimetable, venueOf } from '/js/schedule.js';
 
     const Y = '#FFD400', K = '#111111', INK = '#2b2b2b';
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -72,6 +72,10 @@
       #card .tt .cell { border: 2px solid ${K}; padding: 4px 8px; display: flex; justify-content: space-between; background: #fff; }
       #card .tt .cell.seg2 { background: ${Y}; }
       #card .foot { display: flex; justify-content: space-between; align-items: center; background: ${K}; color: #fff; margin: 24px -32px 0; padding: 12px 32px; font-size: 12px; letter-spacing: 2px; font-weight: 700; }
+      #card .vhead { display: flex; align-items: baseline; justify-content: space-between; padding: 7px 12px; margin: 18px 0 0; font-size: 16px; font-weight: 900; letter-spacing: 2px; }
+      #card .vhead.vA { background: ${K}; color: ${Y}; }
+      #card .vhead.vB { background: ${Y}; color: ${K}; border: 3px solid ${K}; border-top-width: 0; }
+      #card .vhead .vs-sub { font-size: 11px; font-weight: 700; letter-spacing: 1px; }
       #card .rk { font-family: Consolas, monospace; font-size: 19px; font-weight: 700; width: 56px; }
       #card .score { font-size: 18px; font-weight: 900; }
     `;
@@ -91,8 +95,8 @@
       return `<div class="foot"><span>${esc(st.state.meta.name)} · CRTC × DUBOV 赛事系统</span><span>生成于 ${new Date().toLocaleString('zh-CN', { hour12: false })}</span></div>`;
     }
 
-    // ---------- 对阵卡 ----------
-    function roundCard() {
+    // ---------- 对阵卡（A/B 场分区块；?venue=A|B 可只渲染单场地） ----------
+    function roundCard(venueFilter) {
       const pending = st.pending;
       const round = pending || [...st.state.swiss.rounds].reverse().find((r) => r.committed);
       if (!round) return `<div class="head"><div class="title">暂无对阵</div></div><p style="font-weight:700;padding-bottom:20px">请先在系统中生成本轮对阵。</p>${footHtml()}`;
@@ -100,7 +104,7 @@
       const promoted = new Set(round.promoted || []);
       const demoted = new Set(round.demoted || []);
       const tagOf = (id) => promoted.has(id) ? '<em class="tag">上调</em>' : demoted.has(id) ? '<em class="tag">下调</em>' : '';
-      const rows = [...round.pairings].sort((a, b) => a.board - b.board).map((p) => {
+      const rowHtml = (p) => {
         const w = batchWindow(round.round, p.board, total);
         const wo = p.walkover ? `<em class="tag solid">${st.state.teams.find((t) => t.id === p.a)?.suspended || st.state.teams.find((t) => t.id === p.b)?.suspended ? '停赛判负' : '弃赛判负'}</em>` : '';
         const tags = `${tagOf(p.a)}${tagOf(p.b)}${p.rematchOf ? '<em class="tag solid">重赛·第' + p.rematchOf + '轮</em>' : ''}${p.rematchDefer ? '<em class="tag solid">暂记平局·下轮重赛</em>' : ''}${wo}`;
@@ -113,24 +117,38 @@
           <td class="vb"><b>${esc(nameOf(p.b))}</b><i>ARO ${fmtAro(p.aroB)}</i></td>
           <td class="tg">${tags}</td>
         </tr>`;
+      };
+
+      const hasB = total > 16;
+      const ranges = [];
+      if (!venueFilter || venueFilter === 'A' || !hasB) ranges.push({ key: 'A', lo: 1, hi: Math.min(16, total) });
+      if (hasB && (!venueFilter || venueFilter === 'B')) ranges.push({ key: 'B', lo: 17, hi: total });
+      let byeLeft = round.bye; // 轮空行放在第一个渲染的场地区块末尾
+      const sections = ranges.map(({ key, lo, hi }) => {
+        const ps = round.pairings.filter((p) => p.board >= lo && p.board <= hi).sort((a, b) => a.board - b.board);
+        const byeRow = byeLeft ? `<tr class="bye">
+          <td class="bd">—</td><td class="tw">轮空</td>
+          <td class="va" colspan="3"><b>${esc(nameOf(byeLeft))}</b><i>本轮 ARO 项 = 除本组外对手均值 ${fmtAro(round.byeTerm ?? 0)}（条款 5.3.1）</i></td>
+          <td class="tg"></td></tr>` : '';
+        byeLeft = null;
+        return `<div class="vhead v${key}"><b>${key} 场</b><span class="vs-sub">台 ${String(lo).padStart(2, '0')}–${String(hi).padStart(2, '0')} · 每批 1 场</span></div>
+        <table>
+          <thead><tr><th>台</th><th>批次 / 时间</th><th style="text-align:right">A</th><th style="text-align:center">结果</th><th>B</th><th style="text-align:right">标记</th></tr></thead>
+          <tbody>${ps.map(rowHtml).join('')}${byeRow}</tbody>
+        </table>`;
       }).join('');
-      const byeRow = round.bye ? `<tr class="bye">
-        <td class="bd">—</td><td class="tw">轮空</td>
-        <td class="va" colspan="3"><b>${esc(nameOf(round.bye))}</b><i>本轮 ARO 项 = 除本组外对手均值 ${fmtAro(round.byeTerm ?? 0)}（条款 5.3.1）</i></td>
-        <td class="tg"></td></tr>` : '';
       const tt = fullTimetable(round.round).map((b) =>
         `<span class="cell ${b.seg === '后段' ? 'seg2' : ''}"><span>批次${String(b.batch).padStart(2, '0')}</span><span>${b.start}–${b.end}</span></span>`).join('');
+      const venueNote = hasB ? ' · A/B 两场地并行开打（每批各一场）' : '';
+      const title = `第 ${round.round} 轮对阵${venueFilter && hasB ? ' · ' + venueFilter + ' 场' : ''}`;
       return `<div class="brand"></div><div class="inner">
-      ${headHtml(`第 ${round.round} 轮对阵`, `PAIRINGS · ${total} 台`)}
+      ${headHtml(title, `PAIRINGS · ${total} 台`)}
       <div class="meta">
-        <span>${esc(st.state.meta.name)} · 瑞士轮 ${st.swissProgress.done}/${st.swissProgress.total}${pending ? ' · 待录入' : ' · 已确认'}</span>
+        <span>${esc(st.state.meta.name)} · 瑞士轮 ${st.swissProgress.done}/${st.swissProgress.total}${pending ? ' · 待录入' : ' · 已确认'}${venueNote}</span>
         <span>${windowSummary(round.round, total)}</span>
       </div>
-      <table>
-        <thead><tr><th>台</th><th>批次 / 时间</th><th style="text-align:right">A</th><th style="text-align:center">结果</th><th>B</th><th style="text-align:right">标记</th></tr></thead>
-        <tbody>${rows}${byeRow}</tbody>
-      </table>
-      <div class="tt"><h3>本批次时间总表（每 19 分钟一批 · 打 9 分钟歇 10 分钟）</h3><div class="grid">${tt}</div></div>
+      ${sections}
+      <div class="tt"><h3>本批次时间总表（每 19 分钟一批 · 打 9 分钟歇 10 分钟 · 两场地同时制）</h3><div class="grid">${tt}</div></div>
       ${footHtml()}</div>`;
     }
 
@@ -158,7 +176,7 @@
       ${footHtml()}</div>`;
     }
 
-    const tabs = { round: roundCard, standings: standingsCard };
+    const tabs = { round: () => roundCard(new URLSearchParams(location.search).get('venue')), standings: standingsCard };
     let current = 'round';
     function show(tab) {
       current = tab;

@@ -27,6 +27,13 @@ export function batchWindow(round, board, total) {
   };
 }
 
+// 场地：台 01–16 = A 场，台 17 起 = B 场（两场地并行开打，每批各一场；
+// ≤16 台时仅 A 场）。同一批次的 A/B 两场同时段分头进行。
+export function venueOf(board, total) {
+  const isA = total <= 16 || board <= 16;
+  return { key: isA ? 'A' : 'B', name: isA ? 'A 场' : 'B 场' };
+}
+
 // 该轮时间窗概览（对阵页/导出卡顶部用）
 export function windowSummary(round, total) {
   const par = total > 16 ? `（每批并行 ${Math.ceil(total / 16)} 场）` : '';

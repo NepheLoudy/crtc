@@ -311,6 +311,13 @@ select { cursor: pointer; }
   font-size: 9px; letter-spacing: 0; color: var(--faint);
   white-space: nowrap; margin-top: 3px;
 }
+.pairing .venue {
+  display: block; width: fit-content; margin: 0 auto 3px;
+  font-family: var(--font-disp); font-size: 9.5px; font-weight: 800; letter-spacing: 1px;
+  padding: 1px 6px;
+}
+.pairing .venue.vA { background: var(--amber); color: #111; }
+.pairing .venue.vB { background: var(--cyan); color: #111; }
 .segwrap { display: inline-flex; align-items: center; gap: 6px; }
 .pairing .side { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pairing .side .nm { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

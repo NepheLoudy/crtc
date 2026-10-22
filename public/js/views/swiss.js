@@ -2,7 +2,7 @@
 import { api } from '../api.js';
 import { can } from '../main.js';
 import { esc, fmtAro, fmtPts, teamName, $ } from '../ui.js';
-import { batchWindow, windowSummary } from '../schedule.js';
+import { batchWindow, windowSummary, venueOf } from '../schedule.js';
 
 export function renderSwiss(el, d) {
   if (!d.hasTournament) {
@@ -117,6 +117,7 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
   const rematched = !!p.rematchOf;
   const deferred = !!p.rematchDefer;
   const win = batchWindow(roundNo, p.board, total);
+  const venue = venueOf(p.board, total);
   let seg;
   if (canScore) {
     const rmBtn = (deferred || rematched) ? '' :
@@ -150,7 +151,7 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
   ].join('');
   return `
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
-      <div class="board-no">${String(p.board).padStart(2, '0')}<span class="bt">${win.day} ${win.label}</span></div>
+      <div class="board-no"><span class="venue ${venue.key === 'A' ? 'vA' : 'vB'}">${venue.name}</span>${String(p.board).padStart(2, '0')}<span class="bt">${win.day} ${win.label}</span></div>
       <div class="side left">
         <span class="nmrow"><span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>${susp(p.a)}</span>
         <span class="aro">ARO ${fmtAro(p.aroA)}</span>
