@@ -15,7 +15,7 @@ import {
   generateRound, submitResults, commitRound, regenerateRound,
   pendingRound, committedRounds, standings,
   addRequest, getRequest, approveReschedule, rejectRequest,
-  deferRematch, suspendTeam,
+  deferRematch, rematchNow, suspendTeam,
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
@@ -250,6 +250,11 @@ export function createApiRouter() {
   api.post('/swiss/defer-rematch', wrap('登记下轮重赛', (req) => {
     deferRematch(store.get(), req.body?.board);
   }));
+
+  // 5.3.6 本轮立刻重赛：清结果 + 调至本轮最后一局（其余局次前移）
+  api.post('/swiss/rematch-now', wrap('本轮立刻重赛', (req) => {
+    rematchNow(store.get(), req.body?.board);
+  }, { perm: 'referee' }));
 
   // 5.3.7 停赛：直接移除该队（本轮该场删除），替补用 POST /teams 录入
   api.post('/swiss/suspend', wrap('停赛移除', (req) => {

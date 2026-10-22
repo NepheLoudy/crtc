@@ -245,7 +245,7 @@ test('轮空与重复对位同轮：消解重跑级联不吞轮空者（9队回�
 });
 
 // ---------- 5.3.6 重赛 / 5.3.7 停赛与替补 ----------
-import { deferRematch, suspendTeam, activeTeams, addTeams } from '../lib/engine.js';
+import { deferRematch, rematchNow, suspendTeam, activeTeams, addTeams } from '../lib/engine.js';
 
 test('5.3.6 下轮再重赛：暂记平局 + 下轮强制对位（豁免禁止重复）', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
@@ -281,6 +281,26 @@ test('5.3.6 下轮再重赛：暂记平局 + 下轮强制对位（豁免禁止�
   assert.equal(computeTable(s, 2).get(rp.a).wins, 1);
 });
 
+
+test('5.3.6 本轮立刻重赛：清结果 + 调至本轮最后一局（其余局次前移）', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const target = r0.pairings[0];
+  const oldBoard = target.board;
+  submitResults(s, [{ board: target.board, result: 'a' }]); // 已录结果会被清除
+  rematchNow(s, oldBoard);
+  assert.equal(target.result, null);
+  assert.equal(target.board, r0.pairings.length);           // 调至最后一局
+  assert.equal(r0.pairings[0].board, 1);                    // 局号重编连续
+  assert.ok(r0.pairings.every((x, i) => x.board === i + 1));
+  // 重录后照常确认
+  for (const p of r0.pairings) {
+    if (p.result == null) submitResults(s, [{ board: p.board, result: 'draw' }]);
+  }
+  commitRound(s);
+  assert.throws(() => rematchNow(s, 1), /没有待确认/);
+});
 test('5.3.7 停赛=移除：本轮已生成对位判对手胜，替补补位无轮空', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
   generateRound(s);

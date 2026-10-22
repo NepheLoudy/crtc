@@ -261,19 +261,19 @@ function bindSwiss(el, d) {
       const isAdmin = can('admin');
       let goDefer = false;
       if (isAdmin) {
-        goDefer = !confirm(`第 ${board} 局重赛方式：\n\n【确定】本轮立刻重赛——清除已录结果，当场重打、重新录入\n【取消】改为「下轮再重赛」`);
+        goDefer = !confirm(`第 ${board} 局重赛方式：\n\n【确定】本轮立刻重赛——清除已录结果，该局调至本轮最后一局（其余局次前移），当场重打、重新录入\n【取消】改为「下轮再重赛」`);
         if (goDefer) {
           if (!confirm('确认「下轮再重赛」？\n\n本场本轮按平局结算（双方各 +1 分、ARO 项=对手 ARO）以保障赛程推进；下一轮生成对阵时该两队强制再次对位（豁免 5.3.5 禁止重复）。')) return;
         }
       } else {
-        if (!confirm(`本轮立刻重赛？将清除第 ${board} 局已录结果，当场重打、重新录入。\n（「下轮再重赛」需管理员操作）`)) return;
+        if (!confirm(`本轮立刻重赛？将清除第 ${board} 局已录结果，该局调至本轮最后一局（其余局次前移），当场重打、重新录入。\n（「下轮再重赛」需管理员操作）`)) return;
       }
       if (goDefer) {
         await api('POST', '/swiss/defer-rematch', { board });
         toast(`第 ${board} 局已登记下轮重赛（本轮暂记平局）`);
       } else {
-        await api('POST', '/swiss/results', { results: [{ board, result: 'reset' }] });
-        toast(`第 ${board} 局结果已清除，可重新录入`);
+        await api('POST', '/swiss/rematch-now', { board });
+        toast(`第 ${board} 局已调至本轮最后一局，结果已清除，可重新录入`);
       }
       return;
     }
