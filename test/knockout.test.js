@@ -98,20 +98,81 @@ test('进攻方破防：身份互换、旧防守方回队尾；旧防守方再�
   assert.equal(k.pts.t7, 0);
 });
 
-test('平局加赛：直到一方先累计 2 局胜利', () => {
+test('3 局制：平局双负不计胜局，先胜 2 局赢下该场', () => {
   const s = mkSwissDone();
   const k = initKnockout(s);
   assignAttackers(s, ASSIGN);
   let over = false;
-  for (const o of ['attacker', 'draw', 'draw', 'attacker']) {
+  for (const o of ['attacker', 'draw', 'attacker']) {
     over = playGame(s, 'A', o).matchOver;
   }
-  assert.equal(over, true);
+  assert.equal(over, true);                  // 2 胜即结束（第 3 局不必打满）
   assert.equal(k.pts.t6, 3);                 // t6 两次破局得手 +2 → 2+1
   assert.equal(k.pts.t8, 1);                 // t8 被破防 3-2
   assert.equal(k.groups.A.defender, 't6');   // 身份互换
   assert.equal(k.current.A.attacker, 't5');  // t8 回队尾后队首
   assert.equal(k.current.A.games.length, 0); // 已开启下一场
+});
+
+test('平场：打满 3 局无人 2 胜 → 双方各 -0.5，进攻方回队尾、防守方留任', () => {
+  const s = mkSwissDone();
+  const k = initKnockout(s);
+  assignAttackers(s, ASSIGN);
+  let over = false;
+  for (const o of ['defender', 'draw', 'draw']) {
+    over = playGame(s, 'A', o).matchOver;
+  }
+  assert.equal(over, true);                  // 3 局打满 1 胜 0 胜 → 平场
+  assert.equal(k.pts.t8, 2.5);               // 3 - 0.5
+  assert.equal(k.pts.t6, 1.5);               // 2 - 0.5
+  assert.equal(k.matchWins.t8, 0);           // 平场不计胜场
+  assert.equal(k.groups.A.defender, 't8');   // 防守方留任
+  assert.equal(k.groups.A.queue.join(','), 't4,t6'); // 败方（进攻方）回队尾
+  assert.equal(k.current.A.attacker, 't5');  // 下一场已开启
+});
+
+test('平场防守方归零：进攻方成为新防守方', () => {
+  const s = mkSwissDone();
+  const k = initKnockout(s);
+  assignAttackers(s, ASSIGN);
+  k.pts.t8 = 0.5;
+  k.pts.t6 = 1.5;
+  let over = false;
+  for (const o of ['draw', 'draw', 'draw']) over = playGame(s, 'A', o).matchOver;
+  assert.equal(over, true);
+  assert.equal(k.pts.t8, 0);                 // 0.5 - 0.5 归零
+  assert.equal(k.pts.t6, 1);                 // 1.5 - 0.5 未归零
+  assert.equal(k.groups.A.defender, 't6');   // 进攻方接任防守
+  assert.ok(k.eliminated.some((e) => e.id === 't8'));
+  assert.ok(!k.eliminated.some((e) => e.id === 't6'));
+  assert.equal(k.groups.A.queue.join(','), 't4'); // 接任者不回队尾；下一场已消耗队首 t5
+});
+
+test('平场双方归零：顺位进攻方接任；队列空则防守方不淘汰', () => {
+  const s = mkSwissDone();
+  const k = initKnockout(s);
+  assignAttackers(s, ASSIGN);
+  k.pts.t8 = 0.5;
+  k.pts.t6 = 0.5;
+  for (const o of ['draw', 'draw', 'draw']) playGame(s, 'A', o);
+  // 双方归零：t8/t6 均淘汰，顺位进攻方 t5 接任防守
+  assert.equal(k.groups.A.defender, 't5');
+  assert.ok(k.eliminated.some((e) => e.id === 't8'));
+  assert.ok(k.eliminated.some((e) => e.id === 't6'));
+  assert.equal(k.groups.A.queue.join(','), '');
+  assert.equal(k.current.A.attacker, 't4'); // 顺位进攻方接任后，t4 立即成为其对手
+
+  // 队列空场合：防守方打平归零且无顺位进攻方 → 防守方不淘汰
+  k.groups.A.queue = [];
+  k.current.A = { defender: 't5', attacker: 't4', games: [] };
+  k.pts.t5 = 0.5;
+  k.pts.t4 = 0.5;
+  for (const o of ['draw', 'draw', 'draw']) playGame(s, 'A', o);
+  assert.equal(k.pts.t5, 0);
+  assert.ok(!k.eliminated.some((e) => e.id === 't5'), '无顺位进攻方，防守方不淘汰');
+  assert.ok(k.eliminated.some((e) => e.id === 't4'));
+  assert.equal(k.groups.A.defender, 't5');
+  assert.equal(k.current.A, null);
 });
 
 test('完整车轮战 → 决赛 BO3 → 冠亚季裁定（胜场 → 积分 → ARO 三级比较）', () => {
@@ -140,7 +201,7 @@ test('完整车轮战 → 决赛 BO3 → 冠亚季裁定（胜场 → 积分 →
   assert.equal(k.phase, 'final');
   assert.deepEqual(k.final.players, ['t8', 't2']);
 
-  // 决赛：t8 先胜一局，t2 连扳两局（含平局加赛）逆转
+  // 决赛：t8 先胜一局，t2 连扳两局逆转（决赛平局不计、加赛至分出）
   recordFinalGame(s, 'a');
   assert.equal(recordFinalGame(s, 'draw').done, false);
   recordFinalGame(s, 'b');

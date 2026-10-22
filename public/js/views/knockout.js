@@ -236,7 +236,7 @@ export function finalHtml(d, k, ro = false) {
         <div class="mid">
           <span class="match-no amber">CHAMPION MATCH</span>
           <div class="pips">${k.final.games.map((x) => `<i class="pip ${x === 'a' ? 'd' : x === 'b' ? 'a' : 'x'}"></i>`).join('') || '<i class="pip"></i>'}</div>
-          <span class="match-no dim">先胜 2 局</span>
+          <span class="match-no dim">3 局制 · 先胜 2 局</span>
         </div>
         <div class="fighter atk">
           <span class="role">▲ ${esc(teamName(d, b))} ${ro ? '' : kickFinal(b)}</span>
