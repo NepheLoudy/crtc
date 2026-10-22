@@ -214,6 +214,7 @@ body::before {
   transition: color .12s, border-color .12s;
 }
 .btn-susp:hover { color: #ff7a7a; border-color: #ff7a7a; }
+.btn-susp.ff:hover { color: #f5b04c; border-color: #f5b04c; }
 
 /* ---------------- 表格 ---------------- */
 table.grid { width: 100%; border-collapse: collapse; }

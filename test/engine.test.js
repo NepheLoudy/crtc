@@ -245,7 +245,7 @@ test('轮空与重复对位同轮：消解重跑级联不吞轮空者（9队回�
 });
 
 // ---------- 5.3.6 重赛 / 5.3.7 停赛与替补 ----------
-import { deferRematch, rematchNow, suspendTeam, activeTeams, addTeams } from '../lib/engine.js';
+import { deferRematch, rematchNow, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench, activeTeams, addTeams, standings as standingsT } from '../lib/engine.js';
 
 test('5.3.6 下轮再重赛：暂记平局 + 下轮强制对位（豁免禁止重复）', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
@@ -346,6 +346,63 @@ test('5.3.7 停赛作废重赛义务：队列清除、下轮不再强制对位',
   const r2 = generateRound(s);
   assert.ok(r2.pairings.every((p) => !p.rematchOf));
   assert.ok(r2.pairings.every((p) => p.a !== m.a && p.b !== m.a));
+});
+
+test('5.3.7 弃赛：候补首位顶替出战本局，原队移除', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const victim = r0.pairings.find((p) => p.a === 't4' || p.b === 't4');
+  addBenchTeam(s, { name: '候补一', initialScore: 75 });
+  addBenchTeam(s, { name: '候补二', initialScore: 65 });
+  assert.equal(benchTeams(s).length, 2);
+  assert.equal(benchTeams(s)[0].name, '候补一'); // 按录入顺序
+  forfeitTeam(s, 't4');
+  const subId = victim.a === 't4' ? victim.b : victim.a;
+  const sub = s.teams.find((t) => t.id === subId);
+  assert.equal(sub.name, '候补一');               // 首位顶替
+  assert.equal(victim.result, null);              // 恢复未赛
+  assert.ok(!victim.walkover);
+  const subSide = victim.a === subId ? victim.aroA : victim.aroB;
+  assert.equal(subSide, 75);                      // 该侧 ARO 更新为候补入场分
+  assert.equal(s.teams.find((t) => t.id === 't4').forfeited, true);
+  assert.equal(benchTeams(s).length, 1);          // 首位已离册
+  assert.equal(activeTeams(s).length, 4);         // 甲乙丙 + 候补一
+  for (const p of r0.pairings) {
+    if (p.result == null) submitResults(s, [{ board: p.board, result: 'draw' }]);
+  }
+  commitRound(s);
+  const r1 = generateRound(s);
+  assert.ok(r1.pairings.some((p) => p.a === subId || p.b === subId));
+  assert.ok(r1.pairings.every((p) => p.a !== 't4' && p.b !== 't4'));
+});
+
+test('5.3.7 弃赛空候补：退化为判对手胜', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const victim = r0.pairings.find((p) => p.a === 't4' || p.b === 't4');
+  forfeitTeam(s, 't4');
+  assert.equal(victim.walkover, true);
+  assert.equal(victim.result, victim.a === 't4' ? 'b' : 'a');
+  assert.equal(s.teams.find((t) => t.id === 't4').forfeited, true);
+});
+
+test('候补队列：在册不参赛，转正后下轮参赛，可直接移除', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  addBenchTeam(s, { name: '候补A', initialScore: 77 });
+  const b = s.teams.find((t) => t.name === '候补A');
+  assert.equal(b.bench, true);
+  assert.equal(activeTeams(s).length, 4);
+  const row = standingsT(s).find((r) => r.teamId === b.id);
+  assert.equal(row.bench, true);
+  activateBench(s, b.id);
+  assert.equal(b.bench, false);
+  assert.equal(activeTeams(s).length, 5);
+  addBenchTeam(s, { name: '候补B', initialScore: 60 });
+  const b2 = s.teams.find((t) => t.name === '候补B');
+  removeBench(s, b2.id);
+  assert.ok(!s.teams.some((t) => t.id === b2.id));
 });
 
 // ---------- 队员申请（5.3.4） ----------

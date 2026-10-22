@@ -67,7 +67,7 @@ function pendingHtml(d, p) {
       <div class="side right"><span class="aro">条款 5.3.1</span></div>
       <div></div>
     </div>` : '';
-  const subForm = can('admin') ? subFormHtml(d) : '';
+  const benchForm = can('admin') ? benchPanelHtml(d) : '';
 
   return `
     <div class="panel corner">
@@ -89,24 +89,41 @@ function pendingHtml(d, p) {
              <span class="hint">${resultsIn ? '全部对局已录入，确认后进入积分与 ARO 结算。' : '还有对局未录入结果。'}</span>`
           : '<span class="hint">结果由裁判录入；登录后可操作。</span>'}
       </div>
-      ${subForm}
+      ${benchForm}
     </div>`;
 }
 
-// 5.3.7 补位替补：停赛/退赛致奇数时录入新队伍保证无轮空
-function subFormHtml(d) {
+// 5.3.7 候补队列 + 补位：停赛/退赛致奇数时录入候补保证无轮空；
+// 弃赛时候补首位自动顶替出战。候补在册不参赛，可转正/移除。
+function benchPanelHtml(d) {
   const next = d.nextRound || {};
-  const activeCnt = next.activeCount ?? d.state.teams.filter((t) => !t.withdrawn && !t.suspended).length;
+  const activeCnt = next.activeCount ?? d.state.teams.filter((t) => !t.withdrawn && !t.suspended && !t.forfeited && !t.bench).length;
   const oddHint = activeCnt % 2 === 1
     ? '<span class="red">可赛队伍为奇数，未补位将按 5.3.1 轮空。</span>'
     : `<span class="dim">当前在赛 ${activeCnt} 队。</span>`;
+  const bench = (d.state.teams || []).filter((t) => t.bench);
+  const rows = bench.map((t, i) => `
+    <tr>
+      <td class="num dim">${i + 1}</td>
+      <td><span class="team-name"><span class="nm">${esc(t.name)}</span></span></td>
+      <td class="num">${t.initialScore}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm" data-bench-activate="${t.id}" title="转正：下一轮起正常参赛">转正</button>
+        <button class="btn btn-sm btn-danger" data-bench-remove="${t.id}">移除</button>
+      </td>
+    </tr>`).join('');
   return `
     <div class="flex mt" style="margin-top:12px;gap:8px;align-items:center;border-top:1px dashed var(--line);padding-top:10px">
-      <span class="hint">补位替补（5.3.7）：${oddHint}新队默认全负（0 分），初始 ARO 预填在赛队伍中位数，可改。</span>
-      <input type="text" id="sub-name" placeholder="替补队伍名" style="max-width:150px">
-      <input type="number" id="sub-score" value="${next.medianAro ?? 0}" min="0" max="999" step="0.001" style="max-width:95px" title="入场轮在赛队伍 ARO 中位数">
-      <button class="btn btn-sm" id="sub-add">＋ 录入替补</button>
-    </div>`;
+      <span class="hint">候补队列（5.3.7）：${oddHint}弃赛时按以下顺序顶替出战；新队默认全负（0 分），初始 ARO 预填在赛队伍中位数，可改。</span>
+      <input type="text" id="bench-name" placeholder="候补队伍名" style="max-width:150px">
+      <input type="number" id="bench-score" value="${next.medianAro ?? 0}" min="0" max="999" step="0.001" style="max-width:95px" title="入场轮在赛队伍 ARO 中位数">
+      <button class="btn btn-sm" id="bench-add">＋ 加入候补</button>
+    </div>
+    ${bench.length ? `
+    <table class="grid mt" style="margin-top:8px">
+      <thead><tr><th style="width:40px">顺位</th><th>候补队伍</th><th style="width:110px">初始 ARO</th><th style="width:150px">操作</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>` : '<p class="hint mt" style="margin-top:6px">候补队列为空——弃赛时该局将判对手胜。</p>'}`;
 }
 
 function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
@@ -136,7 +153,7 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
   }
   // 5.3.7 停赛键：队伍名旁，管理员专属；重赛/暂记平局场次不提供
   const susp = (id) => (isAdmin && !deferred && !rematched
-    ? `<button class="btn-susp" data-susp-team="${id}" title="停赛移除该队：本轮该场判对手胜，后续轮次不再参与（条款 5.3.7）">⏸</button>` : '');
+    ? `<button class="btn-susp" data-susp-team="${id}" title="停赛移除该队：本轮该局判对手胜，后续轮次不再参与（条款 5.3.7）">⏸</button><button class="btn-susp ff" data-forfeit-team="${id}" title="弃赛移除该队：候补首位顶替出战本局（候补空则判对手胜）">弃</button>` : '');
   // 判负标记文案：涉停赛队 → 停赛判负，否则弃赛判负
   const woTag = (x) => {
     if (!x.walkover) return '';
@@ -167,7 +184,7 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
 
 // 排名表（board 视图复用）
 export function standingsHtml(d, { big = false } = {}) {
-  const rows = d.standings.filter((r) => !r.withdrawn && !r.suspended);
+  const rows = d.standings.filter((r) => !r.withdrawn && !r.suspended && !r.forfeited && !r.bench);
   const maxScore = Math.max(1, ...rows.map((r) => r.score));
   const trs = rows.map((r, i) => {
     const audit = r.terms.length
@@ -278,24 +295,53 @@ function bindSwiss(el, d) {
       return;
     }
 
-    // 5.3.7 停赛：移除该队，本轮该场判对手胜
+    // 5.3.7 停赛：移除该队，本轮该局判对手胜
     if (btn.dataset.suspTeam) {
       const teamId = btn.dataset.suspTeam;
       const name = teamName(d, teamId);
-      const activeCnt = (d.nextRound?.activeCount) ?? d.state.teams.filter((t) => !t.withdrawn && !t.suspended).length;
-      const parity = activeCnt % 2 === 1 ? '\n· 停赛后可赛队伍为奇数，请用下方「补位替补」录入新队伍保证无轮空' : '';
-      if (!confirm(`确认停赛「${name}」？（条款 5.3.7）\n\n· 本轮该场未录入的对局判对手胜（已录结果保留）\n· 后续所有轮次不再参与，历史成绩与 ARO 账目不变${parity}\n· 补位替补：默认全负（0 分），初始 ARO = 在赛队伍中位数`)) return;
+      const activeCnt = (d.nextRound?.activeCount) ?? d.state.teams.filter((t) => !t.withdrawn && !t.suspended && !t.forfeited && !t.bench).length;
+      const parity = activeCnt % 2 === 1 ? '\n· 停赛后可赛队伍为奇数，请用下方「候补队列」录入新队伍保证无轮空' : '';
+      if (!confirm(`确认停赛「${name}」？（条款 5.3.7）\n\n· 本轮该局未录入的对局判对手胜（已录结果保留）\n· 后续所有轮次不再参与，历史成绩与 ARO 账目不变${parity}\n· 补位：在下方「候补队列」录入，弃赛时候补自动顶替`)) return;
       await api('POST', '/swiss/suspend', { teamId });
-      toast(`「${name}」已停赛移除，本轮该场判对手胜`);
+      toast(`「${name}」已停赛移除，本轮该局判对手胜`);
       return;
     }
 
-    if (btn.id === 'sub-add') {
-      const name = $('#sub-name', el).value.trim();
-      if (!name) { toast('请输入替补队伍名', true); return; }
-      const initialScore = Number($('#sub-score', el).value) || 0;
-      await api('POST', '/teams', { teams: [{ name, initialScore }] });
-      toast(`替补「${name}」已录入（初始 ARO ${initialScore}），下轮参赛`);
+    // 5.3.7 弃赛：移除该队，候补首位顶替出战本局
+    if (btn.dataset.forfeitTeam) {
+      const teamId = btn.dataset.forfeitTeam;
+      const name = teamName(d, teamId);
+      const bench = (d.state.teams || []).filter((t) => t.bench);
+      const sub = bench[0];
+      const fillNote = sub
+        ? `候补首位「${sub.name}」将顶替出战本局（对手、批次、场地不变）。`
+        : '候补队列为空，该局将判对手胜。';
+      if (!confirm(`确认弃赛「${name}」？（条款 5.3.7）\n\n· 该队移除，后续轮次不再参与，历史成绩与 ARO 账目不变\n· ${fillNote}\n· 候补在本页底部「候补队列」录入`)) return;
+      await api('POST', '/swiss/forfeit', { teamId });
+      toast(sub ? `「${name}」弃赛，候补「${sub.name}」顶替出战` : `「${name}」弃赛（候补为空，判对手胜）`);
+      return;
+    }
+
+    if (btn.id === 'bench-add') {
+      const name = $('#bench-name', el).value.trim();
+      if (!name) { toast('请输入候补队伍名', true); return; }
+      const initialScore = Number($('#bench-score', el).value) || 0;
+      await api('POST', '/teams/bench', { name, initialScore });
+      toast(`「${name}」已加入候补队列（初始 ARO ${initialScore}）`);
+      return;
+    }
+    if (btn.dataset.benchActivate) {
+      const name = teamName(d, btn.dataset.benchActivate);
+      if (!confirm(`转正「${name}」？下一轮起正常参赛。`)) return;
+      await api('POST', `/teams/bench/${btn.dataset.benchActivate}/activate`);
+      toast(`「${name}」已转正，下轮参赛`);
+      return;
+    }
+    if (btn.dataset.benchRemove) {
+      const name = teamName(d, btn.dataset.benchRemove);
+      if (!confirm(`移除候补「${name}」？`)) return;
+      await api('POST', `/teams/bench/${btn.dataset.benchRemove}/remove`);
+      toast(`候补「${name}」已移除`);
       return;
     }
 

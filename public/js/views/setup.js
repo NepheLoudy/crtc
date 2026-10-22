@@ -134,7 +134,7 @@ function rosterTable(s, started) {
       <td class="num">${i + 1}</td>
       <td>${edit
         ? `<input type="text" data-edit-name="${t.id}" value="${esc(t.name)}" style="max-width:220px">`
-        : `<span class="team-name"><span class="nm">${esc(t.name)}</span>${t.withdrawn ? '<span class="tag tag-out">弃赛</span>' : ''}${t.suspended ? '<span class="tag tag-bye">停赛</span>' : ''}</span>`}</td>
+        : `<span class="team-name"><span class="nm">${esc(t.name)}</span>${t.withdrawn ? '<span class="tag tag-out">退赛</span>' : ''}${t.suspended ? '<span class="tag tag-bye">停赛</span>' : ''}${t.forfeited ? '<span class="tag tag-out">弃赛</span>' : ''}${t.bench ? '<span class="tag tag-bye">候补</span>' : ''}</span>`}</td>
       <td>${edit
         ? `<input type="number" data-edit-score="${t.id}" value="${t.initialScore}" style="max-width:90px">`
         : `<span class="mono">${t.initialScore}</span>`}</td>
@@ -143,10 +143,10 @@ function rosterTable(s, started) {
         ${edit
           ? `<button class="btn btn-sm btn-primary" data-save="${t.id}">保存</button>
              <button class="btn btn-sm" data-cancel="1">取消</button>`
-          : `<button class="btn btn-sm" data-edit="${t.id}" ${t.withdrawn || t.suspended ? 'disabled' : ''}>编辑</button>
-             ${t.withdrawn || t.suspended
-               ? `<button class="btn btn-sm btn-cy" data-reinstate="${t.id}" title="${t.suspended ? '解除停赛（本轮已删的对局不恢复，下轮回归）' : '恢复参赛'}">恢复</button>`
-               : `<button class="btn btn-sm btn-danger" data-withdraw="${t.id}" title="条款 5.3.4：本轮进行中弃赛将判负">弃赛</button>`}`
+          : `<button class="btn btn-sm" data-edit="${t.id}" ${t.withdrawn || t.suspended || t.forfeited ? 'disabled' : ''}>编辑</button>
+             ${t.withdrawn || t.suspended || t.forfeited
+               ? `<button class="btn btn-sm btn-cy" data-reinstate="${t.id}" title="${t.suspended ? '解除停赛' : t.forfeited ? '撤销弃赛（本轮已替换的对局不恢复）' : '恢复参赛'}">恢复</button>`
+               : `<button class="btn btn-sm btn-danger" data-withdraw="${t.id}" title="条款 5.3.4：本轮进行中退赛将判负（对阵行的「弃」为候补顶替式弃赛）">退赛</button>`}`
              }
       </td>
     </tr>`;

@@ -15,7 +15,7 @@ import {
   generateRound, submitResults, commitRound, regenerateRound,
   pendingRound, committedRounds, standings,
   addRequest, getRequest, approveReschedule, rejectRequest,
-  deferRematch, rematchNow, suspendTeam,
+  deferRematch, rematchNow, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench,
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
@@ -44,7 +44,7 @@ function view(me) {
   // 下一轮信息（5.3.7 替补录入用）：轮次号 + 在赛队伍 ARO 中位数（偶数取中间均值）
   const nextRoundNo = state.swiss.rounds.length + 1;
   const aros = standings(state)
-    .filter((r) => !r.withdrawn && !r.suspended)
+    .filter((r) => !r.withdrawn && !r.suspended && !r.forfeited && !r.bench)
     .map((r) => r.aro)
     .sort((a, b) => a - b);
   const medianAro = aros.length
@@ -256,9 +256,26 @@ export function createApiRouter() {
     rematchNow(store.get(), req.body?.board);
   }, { perm: 'referee' }));
 
-  // 5.3.7 停赛：直接移除该队（本轮该场删除），替补用 POST /teams 录入
+  // 5.3.7 停赛：直接移除该队（本轮对位判对手胜）
   api.post('/swiss/suspend', wrap('停赛移除', (req) => {
     suspendTeam(store.get(), req.body?.teamId);
+  }));
+
+  // 5.3.7 弃赛：移除该队，候补首位顶替出战该局（候补空则判对手胜）
+  api.post('/swiss/forfeit', wrap('弃赛移除', (req) => {
+    forfeitTeam(store.get(), req.body?.teamId);
+  }));
+
+  // 候补队列：录入 / 转正 / 移除
+  api.post('/teams/bench', wrap('候补录入', (req) => {
+    const t = addBenchTeam(store.get(), { name: req.body?.name, initialScore: req.body?.initialScore });
+    return { team: t };
+  }));
+  api.post('/teams/bench/:id/activate', wrap('候补转正', (req) => {
+    activateBench(store.get(), req.params.id);
+  }));
+  api.post('/teams/bench/:id/remove', wrap('候补移除', (req) => {
+    removeBench(store.get(), req.params.id);
   }));
 
   // ---- 淘汰赛：录取/编组/退赛为管理员；录局与决赛为裁判及以上 ----
@@ -332,7 +349,7 @@ export function createApiRouter() {
     const rows = standings(state);
     const lines = ['名次,队伍,中期考核分,积分,ARO,胜,平,负,轮空,已赛场次,状态'];
     for (const r of rows) {
-      const status = r.withdrawn ? '弃赛' : r.suspended ? '停赛' : '';
+      const status = r.bench ? '候补' : r.withdrawn ? '退赛' : r.suspended ? '停赛' : r.forfeited ? '弃赛' : '';
       lines.push([r.rank, csv(r.team.name), r.initialScore, r.score, r.aro, r.wins, r.draws, r.losses, r.byes, r.played, status].join(','));
     }
     if (state.knockout) {
