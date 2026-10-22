@@ -72,9 +72,11 @@
       #card .tt .cell { border: 2px solid ${K}; padding: 4px 8px; display: flex; justify-content: space-between; background: #fff; }
       #card .tt .cell.seg2 { background: ${Y}; }
       #card .foot { display: flex; justify-content: space-between; align-items: center; background: ${K}; color: #fff; margin: 24px -32px 0; padding: 12px 32px; font-size: 12px; letter-spacing: 2px; font-weight: 700; }
-      #card .vhead { display: flex; align-items: baseline; justify-content: space-between; padding: 7px 12px; margin: 18px 0 0; font-size: 16px; font-weight: 900; letter-spacing: 2px; }
-      #card .vhead.vA { background: ${K}; color: ${Y}; }
-      #card .vhead.vB { background: ${Y}; color: ${K}; border: 3px solid ${K}; border-top-width: 0; }
+      #card .vhead { display: flex; align-items: baseline; justify-content: space-between; padding: 7px 12px; margin: 18px 0 0; font-size: 16px; font-weight: 900; letter-spacing: 2px; background: ${K}; color: ${Y}; }
+      #card .vhead .vmark { display: inline-block; width: 12px; height: 12px; margin-right: 8px; }
+      #card .vhead.vA .vmark { background: ${Y}; }
+      #card .vhead.vB .vmark { background: transparent; border: 3px solid ${Y}; }
+      #card .vhead.vB { border-top: 4px solid ${K}; }
       #card .vhead .vs-sub { font-size: 11px; font-weight: 700; letter-spacing: 1px; }
       #card .rk { font-family: Consolas, monospace; font-size: 19px; font-weight: 700; width: 56px; }
       #card .score { font-size: 18px; font-weight: 900; }
@@ -131,9 +133,9 @@
           <td class="va" colspan="3"><b>${esc(nameOf(byeLeft))}</b><i>本轮 ARO 项 = 除本组外对手均值 ${fmtAro(round.byeTerm ?? 0)}（条款 5.3.1）</i></td>
           <td class="tg"></td></tr>` : '';
         byeLeft = null;
-        return `<div class="vhead v${key}"><b>${key} 场</b><span class="vs-sub">台 ${String(lo).padStart(2, '0')}–${String(hi).padStart(2, '0')} · 每批 1 场</span></div>
+        return `<div class="vhead v${key}"><b><i class="vmark"></i>${key} 场</b><span class="vs-sub">台号 ${String(lo).padStart(2, '0')}–${String(hi).padStart(2, '0')} · 每批 1 场</span></div>
         <table>
-          <thead><tr><th>台</th><th>批次 / 时间</th><th style="text-align:right">A</th><th style="text-align:center">结果</th><th>B</th><th style="text-align:right">标记</th></tr></thead>
+          <thead><tr><th>台号</th><th>批次 / 时间</th><th style="text-align:right">A</th><th style="text-align:center">结果</th><th>B</th><th style="text-align:right">标记</th></tr></thead>
           <tbody>${ps.map(rowHtml).join('')}${byeRow}</tbody>
         </table>`;
       }).join('');
