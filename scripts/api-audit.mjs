@@ -192,7 +192,7 @@ const mkTournament = async (n = 9, rounds = 2) => {
   ok('下一轮强制重赛对位', rematchPairing && [rematchPairing.a, rematchPairing.b].sort().join('|') === pairIds);
   ok('视图提供替补中位数', typeof st.nextRound?.medianAro === 'number');
 
-  // F2 停赛=移除：该场删除、替补录入、下轮无该队
+  // F2 停赛=移除：本轮对位判对手胜、替补录入、下轮无该队
   await mkTournament(4, 2);
   await api('POST', '/swiss/generate');
   st = (await api('GET', '/state')).data;
@@ -200,11 +200,12 @@ const mkTournament = async (n = 9, rounds = 2) => {
   r = await api('POST', '/swiss/suspend', { teamId: victimId });
   ok('停赛移除', r.data.ok === true);
   st = (await api('GET', '/state')).data;
-  ok('该场对局已删除', st.pending.pairings.length === 1 && st.pending.pairings.every((p) => p.a !== victimId && p.b !== victimId));
+  const vp = st.pending.pairings.find((p) => p.a === victimId || p.b === victimId);
+  ok('本轮对位判对手胜', vp && vp.walkover === true && vp.result === (vp.a === victimId ? 'b' : 'a'));
   r = await api('POST', '/teams', { teams: [{ name: '替补队', initialScore: st.nextRound.medianAro }] });
   ok('录入替补', r.data.ok === true);
   for (const p of st.pending.pairings) {
-    await api('POST', '/swiss/results', { results: [{ board: p.board, result: 'draw' }] });
+    if (p.result == null) await api('POST', '/swiss/results', { results: [{ board: p.board, result: 'draw' }] });
   }
   await api('POST', '/swiss/commit');
   await api('POST', '/swiss/generate');

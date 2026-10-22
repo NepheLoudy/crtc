@@ -281,23 +281,21 @@ test('5.3.6 下轮再重赛：暂记平局 + 下轮强制对位（豁免禁止�
   assert.equal(computeTable(s, 2).get(rp.a).wins, 1);
 });
 
-test('5.3.7 停赛=移除：本场对局删除、不判对手胜，替补补位无轮空', () => {
+test('5.3.7 停赛=移除：本轮已生成对位判对手胜，替补补位无轮空', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
   generateRound(s);
   const r1 = s.swiss.rounds[0];
   const victimPair = r1.pairings.find((p) => p.a === 't4' || p.b === 't4');
-  submitResults(s, [{ board: victimPair.board, result: 'a' }]); // 已录结果也会随场删除
-  suspendTeam(s, 't4');
-  assert.equal(r1.pairings.length, 1);
-  assert.ok(r1.pairings.every((p) => p.a !== 't4' && p.b !== 't4'));
-  assert.deepEqual(r1.pairings.map((p) => p.board), [1]); // 批次重编
+  suspendTeam(s, 't4'); // 未录入时停赛 → 本场判对手胜
+  assert.equal(victimPair.walkover, true);
+  assert.equal(victimPair.result, victimPair.a === 't4' ? 'b' : 'a');
   assert.equal(s.teams.find((t) => t.id === 't4').suspended, true);
   assert.equal(activeTeams(s).length, 3);
-  assert.throws(() => commitRound(s), /未录入结果/); // 删场不产生自动判负
-  submitResults(s, [{ board: 1, result: 'draw' }]);
   // 替补入场（初始 ARO=在赛 ARO 中位数 70/80/90 → 80），保持偶数无轮空
   addTeams(s, [{ name: '替补', initialScore: 80 }]);
-  commitRound(s);
+  const other = r1.pairings.find((p) => p !== victimPair);
+  submitResults(s, [{ board: other.board, result: 'draw' }]);
+  commitRound(s); // 停赛场已自动判定，其余录齐即可确认
   const r2 = generateRound(s);
   assert.equal(r2.pairings.length, 2);
   assert.equal(r2.bye, null);
@@ -307,6 +305,10 @@ test('5.3.7 停赛=移除：本场对局删除、不判对手胜，替补补位�
   const midTable = computeTable(s, 1);
   assert.equal(midTable.get('t5').aro, 80); // 替补初始 ARO = 中位数
   assert.equal(midTable.get('t5').score, 0); // 入场前默认全负 → 0 分
+  // 对手吃到停赛判负的胜局分
+  const opp = victimPair.a === 't4' ? victimPair.b : victimPair.a;
+  assert.equal(midTable.get(opp).wins, 1);
+  assert.equal(midTable.get(opp).score, 3);
   assert.equal(standings(s).find((r) => r.teamId === 't4').suspended, true);
 });
 

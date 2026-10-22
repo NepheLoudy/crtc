@@ -128,11 +128,18 @@ function pairRow(d, p, promoted, demoted, i, canScore) {
   }
   // 5.3.7 停赛键：队伍名旁，管理员专属；重赛/暂记平局场次不提供
   const susp = (id) => (isAdmin && !deferred && !rematched
-    ? `<button class="btn-susp" data-susp-team="${id}" title="停赛移除该队：本场对局删除，后续轮次不再参与（条款 5.3.7）">⏸</button>` : '');
+    ? `<button class="btn-susp" data-susp-team="${id}" title="停赛移除该队：本轮该场判对手胜，后续轮次不再参与（条款 5.3.7）">⏸</button>` : '');
+  // 判负标记文案：涉停赛队 → 停赛判负，否则弃赛判负
+  const woTag = (x) => {
+    if (!x.walkover) return '';
+    const tA = d.state.teams.find((t) => t.id === x.a);
+    const tB = d.state.teams.find((t) => t.id === x.b);
+    return `<span class="tag tag-out">${tA?.suspended || tB?.suspended ? '停赛判负' : '弃赛判负'}</span>`;
+  };
   const flags = [
     rematched ? `<span class="tag tag-atk">重赛·第${p.rematchOf}轮</span>` : '',
     deferred ? '<span class="tag tag-bye">暂记平局·下轮重赛</span>' : '',
-    p.walkover ? '<span class="tag tag-out">弃赛判负</span>' : '',
+    woTag(p),
   ].join('');
   return `
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
@@ -187,7 +194,10 @@ function historyHtml(d) {
     const demoted = new Set(r.demoted || []);
     const rows = r.pairings.map((p) => {
       const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : '½:½';
-      const tags = `${p.rematchOf ? ' <span class="tag tag-atk">重赛·第' + p.rematchOf + '轮</span>' : ''}${p.rematchDefer ? ' <span class="tag tag-bye">暂记平局·下轮重赛</span>' : ''}${p.walkover ? ' <span class="tag tag-out">弃赛判负</span>' : ''}`;
+      const tA = d.state.teams.find((t) => t.id === p.a);
+      const tB = d.state.teams.find((t) => t.id === p.b);
+      const wo = p.walkover ? ` <span class="tag tag-out">${tA?.suspended || tB?.suspended ? '停赛判负' : '弃赛判负'}</span>` : '';
+      const tags = `${p.rematchOf ? ' <span class="tag tag-atk">重赛·第' + p.rematchOf + '轮</span>' : ''}${p.rematchDefer ? ' <span class="tag tag-bye">暂记平局·下轮重赛</span>' : ''}${wo}`;
       return `<tr>
         <td class="num dim">${String(p.board).padStart(2, '0')}</td>
         <td>${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}</td>
@@ -260,15 +270,15 @@ function bindSwiss(el, d) {
       return;
     }
 
-    // 5.3.7 停赛：直接移除该队，本场对局删除
+    // 5.3.7 停赛：移除该队，本轮该场判对手胜
     if (btn.dataset.suspTeam) {
       const teamId = btn.dataset.suspTeam;
       const name = teamName(d, teamId);
       const activeCnt = (d.nextRound?.activeCount) ?? d.state.teams.filter((t) => !t.withdrawn && !t.suspended).length;
       const parity = activeCnt % 2 === 1 ? '\n· 停赛后可赛队伍为奇数，请用下方「补位替补」录入新队伍保证无轮空' : '';
-      if (!confirm(`确认停赛「${name}」？（条款 5.3.7）\n\n· 本轮该场对局删除（已录结果一并删除），不判对手胜\n· 后续所有轮次不再参与，历史成绩与 ARO 账目不变${parity}\n· 补位替补：默认全负（0 分），初始 ARO = 在赛队伍中位数`)) return;
+      if (!confirm(`确认停赛「${name}」？（条款 5.3.7）\n\n· 本轮该场未录入的对局判对手胜（已录结果保留）\n· 后续所有轮次不再参与，历史成绩与 ARO 账目不变${parity}\n· 补位替补：默认全负（0 分），初始 ARO = 在赛队伍中位数`)) return;
       await api('POST', '/swiss/suspend', { teamId });
-      toast(`「${name}」已停赛移除`);
+      toast(`「${name}」已停赛移除，本轮该场判对手胜`);
       return;
     }
 
