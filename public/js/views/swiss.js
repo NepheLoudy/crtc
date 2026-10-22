@@ -66,6 +66,7 @@ function pendingHtml(d, p) {
       <div class="side right"><span class="aro">条款 5.3.1</span></div>
       <div></div>
     </div>` : '';
+  const subForm = can('admin') ? subFormHtml(d) : '';
 
   return `
     <div class="panel corner">
@@ -85,6 +86,23 @@ function pendingHtml(d, p) {
              <span class="hint">${resultsIn ? '全部对局已录入，确认后进入积分与 ARO 结算。' : '还有对局未录入结果。'}</span>`
           : '<span class="hint">结果由裁判录入；登录后可操作。</span>'}
       </div>
+      ${subForm}
+    </div>`;
+}
+
+// 5.3.7 补位替补：停赛/退赛致奇数时录入新队伍保证无轮空
+function subFormHtml(d) {
+  const next = d.nextRound || {};
+  const activeCnt = next.activeCount ?? d.state.teams.filter((t) => !t.withdrawn && !t.suspended).length;
+  const oddHint = activeCnt % 2 === 1
+    ? '<span class="red">可赛队伍为奇数，未补位将按 5.3.1 轮空。</span>'
+    : `<span class="dim">当前在赛 ${activeCnt} 队。</span>`;
+  return `
+    <div class="flex mt" style="margin-top:12px;gap:8px;align-items:center;border-top:1px dashed var(--line);padding-top:10px">
+      <span class="hint">补位替补（5.3.7）：${oddHint}新队默认全负（0 分），初始 ARO 预填在赛队伍中位数，可改。</span>
+      <input type="text" id="sub-name" placeholder="替补队伍名" style="max-width:150px">
+      <input type="number" id="sub-score" value="${next.medianAro ?? 0}" min="0" max="999" step="0.001" style="max-width:95px" title="入场轮在赛队伍 ARO 中位数">
+      <button class="btn btn-sm" id="sub-add">＋ 录入替补</button>
     </div>`;
 }
 
@@ -92,33 +110,49 @@ function pairRow(d, p, promoted, demoted, i, canScore) {
   const aWin = p.result === 'a';
   const bWin = p.result === 'b';
   const draw = p.result === 'draw';
-  const seg = canScore ? `
+  const isAdmin = can('admin');
+  const rematched = !!p.rematchOf;
+  const deferred = !!p.rematchDefer;
+  let seg;
+  if (canScore) {
+    const rmBtn = (deferred || rematched) ? '' :
+      `<button class="btn-reset" data-rematch-board="${p.board}" title="重赛：本轮立刻重赛，或登记下轮再重赛（管理员）">↺<i>重赛</i></button>`;
+    seg = `
     <span class="seg" data-board="${p.board}">
       <button class="${aWin ? 'on-a' : ''}" data-res="a" title="左边队伍胜">胜</button>
       <button class="${draw ? 'on-d' : ''}" data-res="draw">平</button>
       <button class="${bWin ? 'on-b' : ''}" data-res="b" title="右边队伍胜">胜</button>
-    </span>
-    ${p.result && !p.walkover ? `<button class="btn-reset" data-reset-board="${p.board}" title="清除已录结果，本场重赛">↺<i>重赛</i></button>` : ''}`
-    : `<span class="vs-sep">${aWin ? '1:0' : bWin ? '0:1' : draw ? '½:½' : 'VS'}</span>`;
+    </span>${rmBtn}`;
+  } else {
+    seg = `<span class="vs-sep">${aWin ? '1:0' : bWin ? '0:1' : draw ? '½:½' : 'VS'}</span>`;
+  }
+  // 5.3.7 停赛键：队伍名旁，管理员专属；重赛/暂记平局场次不提供
+  const susp = (id) => (isAdmin && !deferred && !rematched
+    ? `<button class="btn-susp" data-susp-team="${id}" title="停赛移除该队：本场对局删除，后续轮次不再参与（条款 5.3.7）">⏸</button>` : '');
+  const flags = [
+    rematched ? `<span class="tag tag-atk">重赛·第${p.rematchOf}轮</span>` : '',
+    deferred ? '<span class="tag tag-bye">暂记平局·下轮重赛</span>' : '',
+    p.walkover ? '<span class="tag tag-out">弃赛判负</span>' : '',
+  ].join('');
   return `
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
       <div class="board-no">${String(p.board).padStart(2, '0')}</div>
       <div class="side left">
-        <span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>
+        <span class="nmrow"><span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>${susp(p.a)}</span>
         <span class="aro">ARO ${fmtAro(p.aroA)}</span>
       </div>
       ${seg}
       <div class="side right">
-        <span class="nm">${demoted.has(p.b) ? '<span class="tag tag-down">下调</span> ' : ''}${promoted.has(p.b) ? '<span class="tag tag-up">上调</span> ' : ''}${esc(teamName(d, p.b))}</span>
+        <span class="nmrow"><span class="nm">${demoted.has(p.b) ? '<span class="tag tag-down">下调</span> ' : ''}${promoted.has(p.b) ? '<span class="tag tag-up">上调</span> ' : ''}${esc(teamName(d, p.b))}</span>${susp(p.b)}</span>
         <span class="aro">ARO ${fmtAro(p.aroB)}</span>
       </div>
-      <div class="flags">${p.walkover ? '<span class="tag tag-out">弃赛判负</span>' : ''}</div>
+      <div class="flags">${flags}</div>
     </div>`;
 }
 
 // 排名表（board 视图复用）
 export function standingsHtml(d, { big = false } = {}) {
-  const rows = d.standings.filter((r) => !r.withdrawn);
+  const rows = d.standings.filter((r) => !r.withdrawn && !r.suspended);
   const maxScore = Math.max(1, ...rows.map((r) => r.score));
   const trs = rows.map((r, i) => {
     const audit = r.terms.length
@@ -153,10 +187,11 @@ function historyHtml(d) {
     const demoted = new Set(r.demoted || []);
     const rows = r.pairings.map((p) => {
       const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : '½:½';
+      const tags = `${p.rematchOf ? ' <span class="tag tag-atk">重赛·第' + p.rematchOf + '轮</span>' : ''}${p.rematchDefer ? ' <span class="tag tag-bye">暂记平局·下轮重赛</span>' : ''}${p.walkover ? ' <span class="tag tag-out">弃赛判负</span>' : ''}`;
       return `<tr>
         <td class="num dim">${String(p.board).padStart(2, '0')}</td>
         <td>${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}</td>
-        <td class="num ${p.result === 'a' ? 'amber' : p.result === 'b' ? 'cy' : 'dim'}">${res}${p.walkover ? ' <span class="tag tag-out">弃赛判负</span>' : ''}</td>
+        <td class="num ${p.result === 'a' ? 'amber' : p.result === 'b' ? 'cy' : 'dim'}">${res}${tags}</td>
         <td>${esc(teamName(d, p.b))}${promoted.has(p.b) ? ' <span class="tag tag-up">上调</span>' : ''}</td>
       </tr>`;
     }).join('');
@@ -199,17 +234,55 @@ function bindSwiss(el, d) {
 
   // 覆盖式绑定：SSE 高频重渲染下避免监听器叠加
   el.onclick = async (e) => {
-    const resetBtn = e.target.closest('[data-reset-board]');
-    if (resetBtn) {
-      const board = Number(resetBtn.dataset.resetBoard);
-      if (!confirm(`确定清除第 ${board} 台的已录结果、本场重赛吗？`)) return;
-      await api('POST', '/swiss/results', { results: [{ board, result: 'reset' }] });
-      toast(`第 ${board} 台结果已清除，可重新录入`);
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    // 5.3.6 重赛：管理员可选本轮立刻 / 下轮再重赛；裁判仅本轮立刻
+    if (btn.dataset.rematchBoard) {
+      const board = Number(btn.dataset.rematchBoard);
+      const isAdmin = can('admin');
+      let goDefer = false;
+      if (isAdmin) {
+        goDefer = !confirm(`第 ${board} 台重赛方式：\n\n【确定】本轮立刻重赛——清除已录结果，当场重打、重新录入\n【取消】改为「下轮再重赛」`);
+        if (goDefer) {
+          if (!confirm('确认「下轮再重赛」？\n\n本场本轮按平局结算（双方各 +1 分、ARO 项=对手 ARO）以保障赛程推进；下一轮生成对阵时该两队强制再次对位（豁免 5.3.5 禁止重复）。')) return;
+        }
+      } else {
+        if (!confirm(`本轮立刻重赛？将清除第 ${board} 台已录结果，当场重打、重新录入。\n（「下轮再重赛」需管理员操作）`)) return;
+      }
+      if (goDefer) {
+        await api('POST', '/swiss/defer-rematch', { board });
+        toast(`第 ${board} 台已登记下轮重赛（本轮暂记平局）`);
+      } else {
+        await api('POST', '/swiss/results', { results: [{ board, result: 'reset' }] });
+        toast(`第 ${board} 台结果已清除，可重新录入`);
+      }
       return;
     }
-    const btn = e.target.closest('.seg button');
-    if (!btn) return;
+
+    // 5.3.7 停赛：直接移除该队，本场对局删除
+    if (btn.dataset.suspTeam) {
+      const teamId = btn.dataset.suspTeam;
+      const name = teamName(d, teamId);
+      const activeCnt = (d.nextRound?.activeCount) ?? d.state.teams.filter((t) => !t.withdrawn && !t.suspended).length;
+      const parity = activeCnt % 2 === 1 ? '\n· 停赛后可赛队伍为奇数，请用下方「补位替补」录入新队伍保证无轮空' : '';
+      if (!confirm(`确认停赛「${name}」？（条款 5.3.7）\n\n· 本轮该场对局删除（已录结果一并删除），不判对手胜\n· 后续所有轮次不再参与，历史成绩与 ARO 账目不变${parity}\n· 补位替补：默认全负（0 分），初始 ARO = 在赛队伍中位数`)) return;
+      await api('POST', '/swiss/suspend', { teamId });
+      toast(`「${name}」已停赛移除`);
+      return;
+    }
+
+    if (btn.id === 'sub-add') {
+      const name = $('#sub-name', el).value.trim();
+      if (!name) { toast('请输入替补队伍名', true); return; }
+      const initialScore = Number($('#sub-score', el).value) || 0;
+      await api('POST', '/teams', { teams: [{ name, initialScore }] });
+      toast(`替补「${name}」已录入（初始 ARO ${initialScore}），下轮参赛`);
+      return;
+    }
+
     const seg = btn.closest('.seg');
+    if (!seg) return;
     await api('POST', '/swiss/results', { results: [{ board: Number(seg.dataset.board), result: btn.dataset.res }] });
   };
 }

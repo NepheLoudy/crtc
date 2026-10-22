@@ -199,6 +199,14 @@ body::before {
 }
 .btn-reset i { font-style: normal; margin-left: 3px; }
 .btn-reset:hover { color: var(--text); border-color: var(--dim); background: rgba(126,164,204,.08); }
+.pairing .nmrow { display: flex; align-items: center; gap: 5px; max-width: 100%; min-width: 0; }
+.btn-susp {
+  appearance: none; background: transparent; cursor: pointer; flex: none;
+  border: 1px dashed var(--line-strong); color: var(--faint);
+  font-size: 10px; line-height: 1.2; padding: 1px 4px;
+  transition: color .12s, border-color .12s;
+}
+.btn-susp:hover { color: #ff7a7a; border-color: #ff7a7a; }
 
 /* ---------------- 表格 ---------------- */
 table.grid { width: 100%; border-collapse: collapse; }

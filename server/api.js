@@ -15,6 +15,7 @@ import {
   generateRound, submitResults, commitRound, regenerateRound,
   pendingRound, committedRounds, standings,
   addRequest, getRequest, approveReschedule, rejectRequest,
+  deferRematch, suspendTeam,
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
@@ -40,6 +41,15 @@ function view(me) {
   const state = store.get();
   if (!state) return { hasTournament: false, canUndo: store.canUndo(), serverTime: Date.now(), me };
   const done = committedRounds(state).length;
+  // 下一轮信息（5.3.7 替补录入用）：轮次号 + 在赛队伍 ARO 中位数（偶数取中间均值）
+  const nextRoundNo = state.swiss.rounds.length + 1;
+  const aros = standings(state)
+    .filter((r) => !r.withdrawn && !r.suspended)
+    .map((r) => r.aro)
+    .sort((a, b) => a - b);
+  const medianAro = aros.length
+    ? (aros.length % 2 ? aros[(aros.length - 1) / 2] : (aros[aros.length / 2 - 1] + aros[aros.length / 2]) / 2)
+    : 0;
   return {
     hasTournament: true,
     state,
@@ -48,6 +58,11 @@ function view(me) {
     pending: pendingRound(state),
     swissDone: done >= state.meta.totalRounds,
     swissProgress: { done, total: state.meta.totalRounds },
+    nextRound: {
+      no: nextRoundNo,
+      medianAro: Math.round(medianAro * 1000) / 1000,
+      activeCount: aros.length,
+    },
     canUndo: store.canUndo(),
     undoLabel: store.lastSnapshotLabel(),
     me,
@@ -231,6 +246,16 @@ export function createApiRouter() {
     commitRound(store.get());
   }, { perm: 'referee' }));
 
+  // 5.3.6 下轮再重赛：本场本轮暂记平局，下一轮强制对位（本轮立刻重赛走 /swiss/results reset）
+  api.post('/swiss/defer-rematch', wrap('登记下轮重赛', (req) => {
+    deferRematch(store.get(), req.body?.board);
+  }));
+
+  // 5.3.7 停赛：直接移除该队（本轮该场删除），替补用 POST /teams 录入
+  api.post('/swiss/suspend', wrap('停赛移除', (req) => {
+    suspendTeam(store.get(), req.body?.teamId);
+  }));
+
   // ---- 淘汰赛：录取/编组/退赛为管理员；录局与决赛为裁判及以上 ----
   api.post('/knockout/init', wrap('录取8强', () => {
     initKnockout(store.get());
@@ -300,9 +325,10 @@ export function createApiRouter() {
     const state = store.get();
     if (!state) return res.status(404).json({ ok: false, error: '尚未创建赛事' });
     const rows = standings(state);
-    const lines = ['名次,队伍,中期考核分,积分,ARO,胜,平,负,轮空,已赛场次,弃赛'];
+    const lines = ['名次,队伍,中期考核分,积分,ARO,胜,平,负,轮空,已赛场次,状态'];
     for (const r of rows) {
-      lines.push([r.rank, csv(r.team.name), r.initialScore, r.score, r.aro, r.wins, r.draws, r.losses, r.byes, r.played, r.withdrawn ? '是' : ''].join(','));
+      const status = r.withdrawn ? '弃赛' : r.suspended ? '停赛' : '';
+      lines.push([r.rank, csv(r.team.name), r.initialScore, r.score, r.aro, r.wins, r.draws, r.losses, r.byes, r.played, status].join(','));
     }
     if (state.knockout) {
       lines.push('');

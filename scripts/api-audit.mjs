@@ -170,6 +170,48 @@ const mkTournament = async (n = 9, rounds = 2) => {
   const rank = st.knockoutRanking;
   ok('最终排名 8 行且名次连续', rank?.length === 8 && rank.every((r, i) => r.finalRank === i + 1));
 
+  console.log('== F. 下轮重赛与停赛（5.3.6 / 5.3.7） ==');
+  // F1 下轮再重赛：暂记平局 → 下轮强制对位
+  await mkTournament(4, 2);
+  await api('POST', '/swiss/generate');
+  st = (await api('GET', '/state')).data;
+  const deferBoard = st.pending.pairings[0].board;
+  r = await api('POST', '/swiss/defer-rematch', { board: deferBoard });
+  ok('登记下轮重赛', r.data.ok === true);
+  st = (await api('GET', '/state')).data;
+  const deferredPairing = st.pending.pairings.find((x) => x.board === deferBoard);
+  ok('暂记平局带标记', deferredPairing.result === 'draw' && deferredPairing.rematchDefer === true);
+  for (const p of st.pending.pairings) {
+    if (p.result == null) await api('POST', '/swiss/results', { results: [{ board: p.board, result: 'draw' }] });
+  }
+  await api('POST', '/swiss/commit');
+  await api('POST', '/swiss/generate');
+  st = (await api('GET', '/state')).data;
+  const rematchPairing = st.pending.pairings.find((x) => x.rematchOf);
+  const pairIds = [deferredPairing.a, deferredPairing.b].sort().join('|');
+  ok('下一轮强制重赛对位', rematchPairing && [rematchPairing.a, rematchPairing.b].sort().join('|') === pairIds);
+  ok('视图提供替补中位数', typeof st.nextRound?.medianAro === 'number');
+
+  // F2 停赛=移除：该场删除、替补录入、下轮无该队
+  await mkTournament(4, 2);
+  await api('POST', '/swiss/generate');
+  st = (await api('GET', '/state')).data;
+  const victimId = st.pending.pairings[0].a;
+  r = await api('POST', '/swiss/suspend', { teamId: victimId });
+  ok('停赛移除', r.data.ok === true);
+  st = (await api('GET', '/state')).data;
+  ok('该场对局已删除', st.pending.pairings.length === 1 && st.pending.pairings.every((p) => p.a !== victimId && p.b !== victimId));
+  r = await api('POST', '/teams', { teams: [{ name: '替补队', initialScore: st.nextRound.medianAro }] });
+  ok('录入替补', r.data.ok === true);
+  for (const p of st.pending.pairings) {
+    await api('POST', '/swiss/results', { results: [{ board: p.board, result: 'draw' }] });
+  }
+  await api('POST', '/swiss/commit');
+  await api('POST', '/swiss/generate');
+  st = (await api('GET', '/state')).data;
+  const aliveIds = st.standings.filter((x) => !x.withdrawn && !x.suspended).map((x) => x.teamId);
+  ok('下轮无停赛队且有轮空裁决', st.pending.pairings.every((p) => p.a !== victimId && p.b !== victimId) && (aliveIds.length % 2 === 0 ? st.pending.bye == null : st.pending.bye != null));
+
   console.log(`\n== 结果：${pass} 通过 / ${failCount} 失败 ==`);
   process.exit(failCount > 0 ? 1 : 0);
 })().catch((e) => { console.error('检测脚本崩溃:', e); process.exit(1); });

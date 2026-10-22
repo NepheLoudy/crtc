@@ -244,6 +244,88 @@ test('轮空与重复对位同轮：消解重跑级联不吞轮空者（9队回�
   generateRound(s);
 });
 
+// ---------- 5.3.6 重赛 / 5.3.7 停赛与替补 ----------
+import { deferRematch, suspendTeam, activeTeams, addTeams } from '../lib/engine.js';
+
+test('5.3.6 下轮再重赛：暂记平局 + 下轮强制对位（豁免禁止重复）', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r1 = s.swiss.rounds[0];
+  const m = r1.pairings[0];
+  const other = r1.pairings[1];
+  deferRematch(s, m.board);
+  assert.equal(m.result, 'draw');
+  assert.equal(m.rematchDefer, true);
+  assert.equal(s.swiss.rematchQueue.length, 1);
+  assert.throws(() => deferRematch(s, m.board), /已登记/);
+  submitResults(s, [{ board: other.board, result: 'a' }]);
+  commitRound(s);
+  // 本轮平局入账：双方各 1 分（保障赛程的暂记口径）
+  const t1 = computeTable(s, 1);
+  assert.equal(t1.get(m.a).score, 1);
+  assert.equal(t1.get(m.a).draws, 1);
+  // 下一轮：强制对位 m 双方（带 rematchOf 标记），其余两队正常配对，无轮空
+  const r2 = generateRound(s);
+  assert.equal(s.swiss.rematchQueue.length, 0);
+  assert.equal(r2.pairings.length, 2);
+  assert.equal(r2.bye, null);
+  const rp = r2.pairings.find((p) => p.rematchOf);
+  assert.ok(rp, '应存在强制重赛对位');
+  assert.equal(rp.rematchOf, 1);
+  assert.deepEqual([rp.a, rp.b].sort(), [m.a, m.b].sort());
+  const np = r2.pairings.find((p) => !p.rematchOf);
+  assert.deepEqual([np.a, np.b].sort(), [other.a, other.b].sort());
+  // 重赛场照常录结果并正常结算
+  submitResults(s, [{ board: rp.board, result: 'a' }, { board: np.board, result: 'draw' }]);
+  commitRound(s);
+  assert.equal(computeTable(s, 2).get(rp.a).wins, 1);
+});
+
+test('5.3.7 停赛=移除：本场对局删除、不判对手胜，替补补位无轮空', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r1 = s.swiss.rounds[0];
+  const victimPair = r1.pairings.find((p) => p.a === 't4' || p.b === 't4');
+  submitResults(s, [{ board: victimPair.board, result: 'a' }]); // 已录结果也会随场删除
+  suspendTeam(s, 't4');
+  assert.equal(r1.pairings.length, 1);
+  assert.ok(r1.pairings.every((p) => p.a !== 't4' && p.b !== 't4'));
+  assert.deepEqual(r1.pairings.map((p) => p.board), [1]); // 批次重编
+  assert.equal(s.teams.find((t) => t.id === 't4').suspended, true);
+  assert.equal(activeTeams(s).length, 3);
+  assert.throws(() => commitRound(s), /未录入结果/); // 删场不产生自动判负
+  submitResults(s, [{ board: 1, result: 'draw' }]);
+  // 替补入场（初始 ARO=在赛 ARO 中位数 70/80/90 → 80），保持偶数无轮空
+  addTeams(s, [{ name: '替补', initialScore: 80 }]);
+  commitRound(s);
+  const r2 = generateRound(s);
+  assert.equal(r2.pairings.length, 2);
+  assert.equal(r2.bye, null);
+  assert.ok(r2.pairings.every((p) => p.a !== 't4' && p.b !== 't4'));
+  const subPair = r2.pairings.find((p) => p.a === 't5' || p.b === 't5');
+  assert.ok(subPair, '替补应参赛');
+  const midTable = computeTable(s, 1);
+  assert.equal(midTable.get('t5').aro, 80); // 替补初始 ARO = 中位数
+  assert.equal(midTable.get('t5').score, 0); // 入场前默认全负 → 0 分
+  assert.equal(standings(s).find((r) => r.teamId === 't4').suspended, true);
+});
+
+test('5.3.7 停赛作废重赛义务：队列清除、下轮不再强制对位', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r1 = s.swiss.rounds[0];
+  const m = r1.pairings[0];
+  deferRematch(s, m.board);
+  assert.equal(s.swiss.rematchQueue.length, 1);
+  submitResults(s, [{ board: r1.pairings[1].board, result: 'a' }]);
+  commitRound(s);
+  suspendTeam(s, m.a);
+  assert.equal(s.swiss.rematchQueue.length, 0);
+  const r2 = generateRound(s);
+  assert.ok(r2.pairings.every((p) => !p.rematchOf));
+  assert.ok(r2.pairings.every((p) => p.a !== m.a && p.b !== m.a));
+});
+
 // ---------- 队员申请（5.3.4） ----------
 import { addRequest, approveWithdraw, approveReschedule, rejectRequest } from '../lib/engine.js';
 
