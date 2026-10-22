@@ -188,9 +188,16 @@ body::before {
 }
 .seg button:last-child { border-right: 0; }
 .seg button:hover { color: var(--text); background: rgba(126,164,204,.08); }
-.seg button.on-a { background: var(--amber-dim); color: var(--amber); }
+.seg button.on-a { background: rgba(214,69,65,.16); color: #d64541; }
 .seg button.on-d { background: rgba(126,164,204,.12); color: var(--text); }
-.seg button.on-b { background: var(--cyan-dim); color: var(--cyan); }
+.seg button.on-b { background: rgba(59,111,212,.16); color: #3b6fd4; }
+.side-chip {
+  display: inline-block; flex: none; font-style: normal;
+  font-family: var(--font-disp); font-size: 9.5px; font-weight: 800; letter-spacing: 1px;
+  padding: 1px 5px; color: #fff; line-height: 1.5;
+}
+.side-chip.r { background: #d64541; }
+.side-chip.b { background: #3b6fd4; }
 .btn-reset {
   appearance: none; background: transparent; cursor: pointer; margin-left: 6px;
   border: 1px dashed var(--line-strong); color: var(--faint);
@@ -323,8 +330,8 @@ select { cursor: pointer; }
 .pairing .side .nm { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pairing .side .aro { font-family: var(--font-mono); font-size: 10.5px; color: var(--faint); }
 .pairing .side.right { text-align: right; align-items: flex-end; }
-.pairing.won-a .side.left .nm { color: var(--amber); }
-.pairing.won-b .side.right .nm { color: var(--cyan); }
+.pairing.won-a .side.left .nm { color: #d64541; }
+.pairing.won-b .side.right .nm { color: #3b6fd4; }
 .pairing .flags { display: flex; gap: 5px; justify-content: flex-end; }
 .vs-sep {
   font-family: var(--font-disp); font-size: 10px; color: var(--faint); letter-spacing: .15em;

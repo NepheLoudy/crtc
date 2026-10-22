@@ -57,6 +57,8 @@
       #card .bd { font-family: Consolas, monospace; font-size: 17px; font-weight: 700; width: 52px; }
       #card .tw { white-space: nowrap; font-family: Consolas, monospace; font-size: 13px; font-weight: 400; width: 168px; color: ${INK}; }
       #card .va, #card .vb { width: 240px; }
+      #card .va b { color: #c0392b; }
+      #card .vb b { color: #2c5fb8; }
       #card .va i, #card .vb i { display: block; font-style: normal; font-family: Consolas, monospace; font-weight: 400; font-size: 11px; color: ${INK}; }
       #card .vs { text-align: center; font-family: Consolas, monospace; font-weight: 700; white-space: nowrap; }
       #card .vb { text-align: right; } #card .vb i { text-align: right; }
@@ -135,7 +137,7 @@
         byeLeft = null;
         return `<div class="vhead v${key}"><b><i class="vmark"></i>${key} 场</b><span class="vs-sub">局号 ${String(lo).padStart(2, '0')}–${String(hi).padStart(2, '0')} · 每批 1 局</span></div>
         <table>
-          <thead><tr><th>局号</th><th>批次 / 时间</th><th style="text-align:right">A</th><th style="text-align:center">结果</th><th>B</th><th style="text-align:right">标记</th></tr></thead>
+          <thead><tr><th>局号</th><th>批次 / 时间</th><th style="text-align:right;color:#c0392b">红方</th><th style="text-align:center">结果</th><th style="color:#2c5fb8">蓝方</th><th style="text-align:right">标记</th></tr></thead>
           <tbody>${ps.map(rowHtml).join('')}${byeRow}</tbody>
         </table>`;
       }).join('');

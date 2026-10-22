@@ -61,14 +61,15 @@ export function renderMe(el, d) {
         ${pending && myPair ? (() => {
           const win = batchWindow(pending.round, myPair.board, pending.pairings.length);
           const venue = venueOf(myPair.board, pending.pairings.length);
+          const mySide = myPair.a === teamId ? '红方' : '蓝方';
           return `<div class="pairing">
             <div class="board-no"><span class="venue ${venue.key === 'A' ? 'vA' : 'vB'}">${venue.name}</span>${String(myPair.board).padStart(2, '0')}<span class="bt">${win.day} ${win.label}</span></div>
-            <div class="side left"><span class="nm ${myPair.result === 'a' ? 'amber' : ''}">${esc(teamNameOf(d, myPair.a))}</span><span class="aro">ARO ${fmtAro(myPair.aroA)}</span></div>
+            <div class="side left"><span class="nm ${myPair.result === 'a' ? 'amber' : ''}"><i class="side-chip r">红</i>${esc(teamNameOf(d, myPair.a))}</span><span class="aro">ARO ${fmtAro(myPair.aroA)}</span></div>
             <span class="vs-sep">${myPair.result === 'a' ? '1:0' : myPair.result === 'b' ? '0:1' : myPair.result === 'draw' ? '½:½' : 'VS'}</span>
-            <div class="side right"><span class="nm ${myPair.result === 'b' ? 'cy' : ''}">${esc(teamNameOf(d, myPair.b))}</span><span class="aro">ARO ${fmtAro(myPair.aroB)}</span></div>
+            <div class="side right"><span class="nm ${myPair.result === 'b' ? 'cy' : ''}">${esc(teamNameOf(d, myPair.b))}<i class="side-chip b">蓝</i></span><span class="aro">ARO ${fmtAro(myPair.aroB)}</span></div>
             <div></div>
           </div>
-          <p class="hint">请提前 10 分钟到达<strong>${venue.name}</strong>候场（批次 ${String(win.batch).padStart(2, '0')} · ${win.day} ${win.start}–${win.end}）。</p>
+          <p class="hint">本队为本局<strong>${mySide}</strong>。请提前 10 分钟到达<strong>${venue.name}</strong>候场（批次 ${String(win.batch).padStart(2, '0')} · ${win.day} ${win.start}–${win.end}）。</p>
           ${myPair.board === pending.pairings.length && pending.pairings.length > 1 ? '<p class="hint">本队本轮为最后一局（可能经场次调换）。</p>' : ''}`; })()
         : `<div class="empty">${pending ? '本轮没有本队对局（轮空或已退赛）' : d.swissDone ? '瑞士轮已结束' : '等待管理员生成对阵'}</div>`}
       </div>

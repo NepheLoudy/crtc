@@ -126,9 +126,9 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
     seg = `
     <span class="segwrap">
       <span class="seg" data-board="${p.board}">
-        <button class="${aWin ? 'on-a' : ''}" data-res="a" title="左边队伍胜">胜</button>
+        <button class="${aWin ? 'on-a' : ''}" data-res="a" title="红方胜">胜</button>
         <button class="${draw ? 'on-d' : ''}" data-res="draw">平</button>
-        <button class="${bWin ? 'on-b' : ''}" data-res="b" title="右边队伍胜">胜</button>
+        <button class="${bWin ? 'on-b' : ''}" data-res="b" title="蓝方胜">胜</button>
       </span>${rmBtn}
     </span>`;
   } else {
@@ -153,12 +153,12 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
       <div class="board-no"><span class="venue ${venue.key === 'A' ? 'vA' : 'vB'}">${venue.name}</span>${String(p.board).padStart(2, '0')}<span class="bt">${win.day} ${win.label}</span></div>
       <div class="side left">
-        <span class="nmrow"><span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>${susp(p.a)}</span>
+        <span class="nmrow"><i class="side-chip r">红</i><span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>${susp(p.a)}</span>
         <span class="aro">ARO ${fmtAro(p.aroA)}</span>
       </div>
       ${seg}
       <div class="side right">
-        <span class="nmrow"><span class="nm">${demoted.has(p.b) ? '<span class="tag tag-down">下调</span> ' : ''}${promoted.has(p.b) ? '<span class="tag tag-up">上调</span> ' : ''}${esc(teamName(d, p.b))}</span>${susp(p.b)}</span>
+        <span class="nmrow"><span class="nm">${demoted.has(p.b) ? '<span class="tag tag-down">下调</span> ' : ''}${promoted.has(p.b) ? '<span class="tag tag-up">上调</span> ' : ''}${esc(teamName(d, p.b))}</span><i class="side-chip b">蓝</i>${susp(p.b)}</span>
         <span class="aro">ARO ${fmtAro(p.aroB)}</span>
       </div>
       <div class="flags">${flags}</div>
