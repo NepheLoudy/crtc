@@ -331,7 +331,7 @@ test('5.3.7 停赛作废重赛义务：队列清除、下轮不再强制对位',
 // ---------- 队员申请（5.3.4） ----------
 import { addRequest, approveWithdraw, approveReschedule, rejectRequest } from '../lib/engine.js';
 
-test('队员申请：提交、去重、批准调换排至最后一台', () => {
+test('队员申请：提交、去重、批准调换排至最后一局', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
   generateRound(s); // (丁,甲)(丙,乙)，批次随机
   const pending = pendingRound(s);
@@ -344,7 +344,7 @@ test('队员申请：提交、去重、批准调换排至最后一台', () => {
 
   if (alreadyLast) {
     // 已在最后一台：批准报错，队员可撤回诉求（管理员拒绝）
-    assert.throws(() => approveReschedule(s, req.id), /最后一台/);
+    assert.throws(() => approveReschedule(s, req.id), /最后一局/);
     rejectRequest(s, req.id);
     assert.equal(req.status, 'rejected');
   } else {

@@ -73,7 +73,7 @@ function pendingHtml(d, p) {
     <div class="panel corner">
       <div class="phead">
         <h2>第 ${p.round} 轮对阵</h2>
-        <span class="sub">PAIRINGS · ${p.pairings.length} 台</span>
+        <span class="sub">PAIRINGS · ${p.pairings.length} 局</span>
         <span class="sp">
           <a class="btn btn-sm" href="/round.html" target="_blank" title="渲染本轮对阵卡片（含批次时间窗），可导出图片 / 打印">⬒ 渲染导出</a>
           ${can('admin') ? '<button class="btn btn-sm" id="regen-round">重新生成</button>' : ''}
@@ -216,7 +216,7 @@ function historyHtml(d) {
     const byeRow = r.bye ? `<tr><td class="num dim">—</td><td colspan="3">${esc(teamName(d, r.bye))} <span class="tag tag-bye">轮空</span> <span class="hint">ARO 项 ${fmtAro(r.byeTerm ?? 0)}</span></td></tr>` : '';
     return `
       <details class="hist">
-        <summary>第 ${r.round} 轮 · ${r.pairings.length} 台 · ${r.committedAt ? new Date(r.committedAt).toLocaleString('zh-CN', { hour12: false }) : ''}</summary>
+        <summary>第 ${r.round} 轮 · ${r.pairings.length} 局 · ${r.committedAt ? new Date(r.committedAt).toLocaleString('zh-CN', { hour12: false }) : ''}</summary>
         <div class="hist-body">
           <table class="grid">${rows}${byeRow}</table>
           ${(r.warnings?.length) ? `<p class="red mt" style="font-size:12px">⚠ ${r.warnings.map(esc).join('<br>⚠ ')}</p>` : ''}
@@ -261,19 +261,19 @@ function bindSwiss(el, d) {
       const isAdmin = can('admin');
       let goDefer = false;
       if (isAdmin) {
-        goDefer = !confirm(`第 ${board} 台重赛方式：\n\n【确定】本轮立刻重赛——清除已录结果，当场重打、重新录入\n【取消】改为「下轮再重赛」`);
+        goDefer = !confirm(`第 ${board} 局重赛方式：\n\n【确定】本轮立刻重赛——清除已录结果，当场重打、重新录入\n【取消】改为「下轮再重赛」`);
         if (goDefer) {
           if (!confirm('确认「下轮再重赛」？\n\n本场本轮按平局结算（双方各 +1 分、ARO 项=对手 ARO）以保障赛程推进；下一轮生成对阵时该两队强制再次对位（豁免 5.3.5 禁止重复）。')) return;
         }
       } else {
-        if (!confirm(`本轮立刻重赛？将清除第 ${board} 台已录结果，当场重打、重新录入。\n（「下轮再重赛」需管理员操作）`)) return;
+        if (!confirm(`本轮立刻重赛？将清除第 ${board} 局已录结果，当场重打、重新录入。\n（「下轮再重赛」需管理员操作）`)) return;
       }
       if (goDefer) {
         await api('POST', '/swiss/defer-rematch', { board });
-        toast(`第 ${board} 台已登记下轮重赛（本轮暂记平局）`);
+        toast(`第 ${board} 局已登记下轮重赛（本轮暂记平局）`);
       } else {
         await api('POST', '/swiss/results', { results: [{ board, result: 'reset' }] });
-        toast(`第 ${board} 台结果已清除，可重新录入`);
+        toast(`第 ${board} 局结果已清除，可重新录入`);
       }
       return;
     }

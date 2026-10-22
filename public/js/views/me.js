@@ -69,7 +69,7 @@ export function renderMe(el, d) {
             <div></div>
           </div>
           <p class="hint">请提前 10 分钟到达<strong>${venue.name}</strong>候场（批次 ${String(win.batch).padStart(2, '0')} · ${win.day} ${win.start}–${win.end}）。</p>
-          ${myPair.board === pending.pairings.length && pending.pairings.length > 1 ? '<p class="hint">本队场次为本轮最后一台（可能经场次调换）。</p>' : ''}`; })()
+          ${myPair.board === pending.pairings.length && pending.pairings.length > 1 ? '<p class="hint">本队本轮为最后一局（可能经场次调换）。</p>' : ''}`; })()
         : `<div class="empty">${pending ? '本轮没有本队对局（轮空或已退赛）' : d.swissDone ? '瑞士轮已结束' : '等待管理员生成对阵'}</div>`}
       </div>
     </div>
@@ -79,7 +79,7 @@ export function renderMe(el, d) {
       ${team?.withdrawn
         ? '<p class="hint">本队已退赛，无法再提交申请。</p>'
         : `
-      <div class="banner">申请将由管理员核实后执行，本队无法直接改动比赛状态。条款 5.3.4：轮次开始前可申请<strong>场次调换</strong>（本轮排至最后一台）；<strong>弃赛</strong>一经批准即本轮判负并退出后续所有轮次，请谨慎提交。</div>
+      <div class="banner">申请将由管理员核实后执行，本队无法直接改动比赛状态。条款 5.3.4：轮次开始前可申请<strong>场次调换</strong>（本轮排至最后一局）；<strong>弃赛</strong>一经批准即本轮判负并退出后续所有轮次，请谨慎提交。</div>
       <div class="form-row">
         <div class="field grow" style="min-width:220px"><label>申请理由（选填，200 字内）</label><input type="text" id="rq-reason" maxlength="200" placeholder="例：设备故障，申请本轮调到最后一场"></div>
         <button class="btn" id="rq-reschedule" ${pending && myPair && myPair.result == null ? '' : 'disabled'}>申请场次调换</button>

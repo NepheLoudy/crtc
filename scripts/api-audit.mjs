@@ -85,8 +85,8 @@ const mkTournament = async (n = 9, rounds = 2) => {
   await api('POST', '/swiss/generate');
   await expectErr('未确认再生成', 'POST', '/swiss/generate', {}, /尚未确认/);
   await expectErr('非法结果值', 'POST', '/swiss/results', { results: [{ board: 1, result: 'x' }] }, /非法结果/);
-  await expectErr('不存在的批次', 'POST', '/swiss/results', { results: [{ board: 99, result: 'a' }] }, /批次不存在/);
-  await expectErr('负数批次', 'POST', '/swiss/results', { results: [{ board: -1, result: 'a' }] }, /批次不存在/);
+  await expectErr('不存在的批次', 'POST', '/swiss/results', { results: [{ board: 99, result: 'a' }] }, /局号不存在/);
+  await expectErr('负数批次', 'POST', '/swiss/results', { results: [{ board: -1, result: 'a' }] }, /局号不存在/);
   await expectErr('结果未齐就确认', 'POST', '/swiss/commit', {}, /未录入结果/);
   let { data: st } = await api('GET', '/state');
   await api('POST', '/swiss/results', { results: st.pending.pairings.map((p, i) => ({ board: p.board, result: i % 3 === 0 ? 'a' : i % 3 === 1 ? 'draw' : 'b' })) });

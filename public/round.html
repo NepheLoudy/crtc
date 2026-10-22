@@ -133,18 +133,18 @@
           <td class="va" colspan="3"><b>${esc(nameOf(byeLeft))}</b><i>本轮 ARO 项 = 除本组外对手均值 ${fmtAro(round.byeTerm ?? 0)}（条款 5.3.1）</i></td>
           <td class="tg"></td></tr>` : '';
         byeLeft = null;
-        return `<div class="vhead v${key}"><b><i class="vmark"></i>${key} 场</b><span class="vs-sub">台号 ${String(lo).padStart(2, '0')}–${String(hi).padStart(2, '0')} · 每批 1 场</span></div>
+        return `<div class="vhead v${key}"><b><i class="vmark"></i>${key} 场</b><span class="vs-sub">局号 ${String(lo).padStart(2, '0')}–${String(hi).padStart(2, '0')} · 每批 1 局</span></div>
         <table>
-          <thead><tr><th>台号</th><th>批次 / 时间</th><th style="text-align:right">A</th><th style="text-align:center">结果</th><th>B</th><th style="text-align:right">标记</th></tr></thead>
+          <thead><tr><th>局号</th><th>批次 / 时间</th><th style="text-align:right">A</th><th style="text-align:center">结果</th><th>B</th><th style="text-align:right">标记</th></tr></thead>
           <tbody>${ps.map(rowHtml).join('')}${byeRow}</tbody>
         </table>`;
       }).join('');
       const tt = fullTimetable(round.round).map((b) =>
         `<span class="cell ${b.seg === '后段' ? 'seg2' : ''}"><span>批次${String(b.batch).padStart(2, '0')}</span><span>${b.start}–${b.end}</span></span>`).join('');
-      const venueNote = hasB ? ' · A/B 两场地并行开打（每批各一场）' : '';
+      const venueNote = hasB ? ' · A/B 两场地并行开打（每批各一局）' : '';
       const title = `第 ${round.round} 轮对阵${venueFilter && hasB ? ' · ' + venueFilter + ' 场' : ''}`;
       return `<div class="brand"></div><div class="inner">
-      ${headHtml(title, `PAIRINGS · ${total} 台`)}
+      ${headHtml(title, `PAIRINGS · ${total} 局`)}
       <div class="meta">
         <span>${esc(st.state.meta.name)} · 瑞士轮 ${st.swissProgress.done}/${st.swissProgress.total}${pending ? ' · 待录入' : ' · 已确认'}${venueNote}</span>
         <span>${windowSummary(round.round, total)}</span>
