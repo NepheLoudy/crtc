@@ -166,9 +166,12 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
     deferred ? '<span class="tag tag-bye">暂记平局·下轮重赛</span>' : '',
     woTag(p),
   ].join('');
+  // 手动调序键（管理员）：与相邻局互换位次，局号重编→批次/场地/时间自动重算
+  const mv = (isAdmin && !p.rematchOf)
+    ? `<span class="mv"><button class="btn-mv" data-move-board="${p.board}" data-delta="-1" ${p.board === 1 ? 'disabled' : ''} title="与上一局互换位次">↑</button><button class="btn-mv" data-move-board="${p.board}" data-delta="1" ${p.board === total ? 'disabled' : ''} title="与下一局互换位次">↓</button></span>` : '';
   return `
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
-      <div class="board-no"><span class="venue ${venue.key === 'A' ? 'vA' : 'vB'}">${venue.name}</span>${String(p.board).padStart(2, '0')}<span class="bt">${win.day} ${win.label}</span></div>
+      <div class="board-no"><span class="venue ${venue.key === 'A' ? 'vA' : 'vB'}">${venue.name}</span><span class="bd-line"><b>${String(p.board).padStart(2, '0')}</b>${mv}</span><span class="bt">${win.day} ${win.label}</span></div>
       <div class="side left">
         <span class="nmrow"><i class="side-chip r">红</i><span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>${susp(p.a)}</span>
         <span class="aro">ARO ${fmtAro(p.aroA)}</span>
@@ -304,6 +307,14 @@ function bindSwiss(el, d) {
       if (!confirm(`确认停赛「${name}」？（条款 5.3.7）\n\n· 本轮该局未录入的对局判对手胜（已录结果保留）\n· 后续所有轮次不再参与，历史成绩与 ARO 账目不变${parity}\n· 补位：在下方「候补队列」录入，弃赛时候补自动顶替`)) return;
       await api('POST', '/swiss/suspend', { teamId });
       toast(`「${name}」已停赛移除，本轮该局判对手胜`);
+      return;
+    }
+
+    // 手动调序：与相邻局互换，局号重编→批次/场地/时间重算
+    if (btn.dataset.moveBoard) {
+      const board = Number(btn.dataset.moveBoard);
+      await api('POST', '/swiss/move-pairing', { board, delta: Number(btn.dataset.delta) });
+      toast(`第 ${board} 局位次已调整，批次/场地/时间按新局号重算`);
       return;
     }
 

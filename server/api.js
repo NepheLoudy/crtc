@@ -15,7 +15,7 @@ import {
   generateRound, submitResults, commitRound, regenerateRound,
   pendingRound, committedRounds, standings,
   addRequest, getRequest, approveReschedule, rejectRequest,
-  deferRematch, rematchNow, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench,
+  deferRematch, rematchNow, movePairing, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench,
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
@@ -251,7 +251,12 @@ export function createApiRouter() {
     deferRematch(store.get(), req.body?.board);
   }));
 
-  // 5.3.6 本轮立刻重赛：清结果 + 调至本轮最后一局（其余局次前移）
+  // 手动调整局序：局号重编，批次/场地/时间随新局号重算
+  api.post('/swiss/move-pairing', wrap('调整局序', (req) => {
+    movePairing(store.get(), req.body?.board, req.body?.delta);
+  }));
+
+    // 5.3.6 本轮立刻重赛：清结果 + 调至本轮最后一局（其余局次前移）
   api.post('/swiss/rematch-now', wrap('本轮立刻重赛', (req) => {
     rematchNow(store.get(), req.body?.board);
   }, { perm: 'referee' }));

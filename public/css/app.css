@@ -326,6 +326,15 @@ select { cursor: pointer; }
 }
 .pairing .venue.vA { background: var(--amber); color: #111; }
 .pairing .venue.vB { background: var(--cyan); color: #111; }
+.pairing .bd-line { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.pairing .btn-mv {
+  appearance: none; background: transparent; cursor: pointer; flex: none;
+  border: 1px dashed var(--line-strong); color: var(--faint);
+  font-size: 9px; line-height: 1.2; padding: 0 3px;
+  transition: color .12s, border-color .12s;
+}
+.pairing .btn-mv:hover:not(:disabled) { color: var(--text); border-color: var(--dim); }
+.pairing .btn-mv:disabled { opacity: .3; cursor: default; }
 .segwrap { display: inline-flex; align-items: center; gap: 6px; }
 .pairing .side { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pairing .side .nm { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -245,7 +245,7 @@ test('轮空与重复对位同轮：消解重跑级联不吞轮空者（9队回�
 });
 
 // ---------- 5.3.6 重赛 / 5.3.7 停赛与替补 ----------
-import { deferRematch, rematchNow, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench, activeTeams, addTeams, standings as standingsT } from '../lib/engine.js';
+import { deferRematch, rematchNow, movePairing, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench, activeTeams, addTeams, standings as standingsT } from '../lib/engine.js';
 
 test('5.3.6 下轮再重赛：暂记平局 + 下轮强制对位（豁免禁止重复）', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
@@ -403,6 +403,23 @@ test('候补队列：在册不参赛，转正后下轮参赛，可直接移除',
   const b2 = s.teams.find((t) => t.name === '候补B');
   removeBench(s, b2.id);
   assert.ok(!s.teams.some((t) => t.id === b2.id));
+});
+
+test('手动调整局序：与相邻局互换、局号重编、结果随局走、边界报错', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const first = r0.pairings.find((p) => p.board === 1);
+  const second = r0.pairings.find((p) => p.board === 2);
+  submitResults(s, [{ board: 1, result: 'a' }]); // 首局已录结果
+  movePairing(s, 1, 1); // 局1 ↔ 局2
+  assert.equal(first.board, 2);
+  assert.equal(second.board, 1);
+  assert.equal(first.result, 'a');               // 结果随局走
+  assert.deepEqual(r0.pairings.map((p) => p.board), [1, 2]);
+  assert.throws(() => movePairing(s, 1, -1), /已在第一局/);
+  assert.throws(() => movePairing(s, 2, 1), /已在最后一局/);
+  assert.throws(() => movePairing(s, 99, 1), /局号不存在/);
 });
 
 // ---------- 队员申请（5.3.4） ----------
