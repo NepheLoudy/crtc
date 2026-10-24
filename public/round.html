@@ -31,6 +31,7 @@
   <div id="card"></div>
   <script type="module">
     import { batchWindow, windowSummary, fullTimetable, venueOf } from '/js/schedule.js';
+    const OFF = () => st?.state?.settings?.scheduleOffsetMin || 0;
 
     const Y = '#FFD400', K = '#111111', INK = '#2b2b2b';
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -109,7 +110,7 @@
       const demoted = new Set(round.demoted || []);
       const tagOf = (id) => promoted.has(id) ? '<em class="tag">上调</em>' : demoted.has(id) ? '<em class="tag">下调</em>' : '';
       const rowHtml = (p) => {
-        const w = batchWindow(round.round, p.board, total);
+        const w = batchWindow(round.round, p.board, total, OFF());
         const wo = p.walkover ? `<em class="tag solid">${st.state.teams.find((t) => t.id === p.a)?.suspended || st.state.teams.find((t) => t.id === p.b)?.suspended ? '停赛判负' : '弃赛判负'}</em>` : '';
         const tags = `${tagOf(p.a)}${tagOf(p.b)}${p.rematchOf ? '<em class="tag solid">重赛·第' + p.rematchOf + '轮</em>' : ''}${p.rematchDefer ? '<em class="tag solid">暂记平局·下轮重赛</em>' : ''}${wo}`;
         const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : p.result === 'draw' ? '½:½' : 'VS';
@@ -141,7 +142,7 @@
           <tbody>${ps.map(rowHtml).join('')}${byeRow}</tbody>
         </table>`;
       }).join('');
-      const tt = fullTimetable(round.round).map((b) =>
+      const tt = fullTimetable(round.round, OFF()).map((b) =>
         `<span class="cell ${b.seg === '后段' ? 'seg2' : ''}"><span>批次${String(b.batch).padStart(2, '0')}</span><span>${b.start}–${b.end}</span></span>`).join('');
       const venueNote = hasB ? ' · A/B 两场地并行开打（每批各一局）' : '';
       const title = `第 ${round.round} 轮对阵${venueFilter && hasB ? ' · ' + venueFilter + ' 场' : ''}`;
@@ -149,7 +150,7 @@
       ${headHtml(title, `PAIRINGS · ${total} 局`)}
       <div class="meta">
         <span>${esc(st.state.meta.name)} · 瑞士轮 ${st.swissProgress.done}/${st.swissProgress.total}${pending ? ' · 待录入' : ' · 已确认'}${venueNote}</span>
-        <span>${windowSummary(round.round, total)}</span>
+        <span>${windowSummary(round.round, total, OFF())}</span>
       </div>
       ${sections}
       <div class="tt"><h3>本批次时间总表（每 19 分钟一批 · 打 9 分钟歇 10 分钟 · 两场地同时制）</h3><div class="grid">${tt}</div></div>

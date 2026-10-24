@@ -3,22 +3,23 @@
 //   单数轮（第1/3/5轮）：批次 1–10 = 上午 09:00–12:00；批次 11–16 = 下午 13:00–14:44
 //   双数轮（第2/4/6轮）：批次 1–10 = 下午 14:59–17:59；批次 11–16 = 晚上 19:00–20:44
 //   64 队 = 每轮 32 局 → 每批并行 2 局（board→批次 = (board-1)%16+1）
+//   全局顺延：settings.scheduleOffsetMin（分钟）整体后移所有批次（现场延误用，可调回 0）
 
 const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
-// 单个批次的开止时刻（round: 1-6, batch: 1-16）
-export function batchSlot(round, batch) {
+// 单个批次的开止时刻（round: 1-6, batch: 1-16, offsetMin: 全局顺延分钟）
+export function batchSlot(round, batch, offsetMin = 0) {
   const first = batch <= 10;
   const base = round % 2 === 1 ? (first ? 9 * 60 : 13 * 60) : (first ? 14 * 60 + 59 : 19 * 60);
   const idx = first ? batch - 1 : batch - 11;
-  const start = base + idx * 19;
+  const start = base + idx * 19 + (Number(offsetMin) || 0);
   return { start: fmt(start), end: fmt(start + 9), day: `第${Math.ceil(round / 2)}天`, seg: first ? '前段' : '后段' };
 }
 
 // 局次 → 批次与时间窗（board: 1..N 局，total: 总局数）
-export function batchWindow(round, board, total) {
+export function batchWindow(round, board, total, offsetMin = 0) {
   const batch = ((board - 1) % 16) + 1;
-  const slot = batchSlot(round, batch);
+  const slot = batchSlot(round, batch, offsetMin);
   return {
     ...slot,
     batch,
@@ -35,17 +36,18 @@ export function venueOf(board, total) {
 }
 
 // 该轮时间窗概览（对阵页/导出卡顶部用）
-export function windowSummary(round, total) {
+export function windowSummary(round, total, offsetMin = 0) {
   const par = total > 16 ? `（每批并行 ${Math.ceil(total / 16)} 局）` : '';
-  const s = (b) => batchSlot(round, b);
-  return `16 批${par}：批次01 ${s(1).start} 起 · 批次10 ${s(10).end} 止 · 批次11 ${s(11).start} 起 · 批次16 ${s(16).end} 止（第${Math.ceil(round / 2)}天）`;
+  const s = (b) => batchSlot(round, b, offsetMin);
+  const off = Number(offsetMin) ? ` · 已整体顺延 ${offsetMin} 分钟` : '';
+  return `16 批${par}：批次01 ${s(1).start} 起 · 批次10 ${s(10).end} 止 · 批次11 ${s(11).start} 起 · 批次16 ${s(16).end} 止（第${Math.ceil(round / 2)}天）${off}`;
 }
 
 // 全部 16 批时间表（导出卡附表用）
-export function fullTimetable(round) {
+export function fullTimetable(round, offsetMin = 0) {
   return Array.from({ length: 16 }, (_, i) => {
     const batch = i + 1;
-    const slot = batchSlot(round, batch);
+    const slot = batchSlot(round, batch, offsetMin);
     return { batch, start: slot.start, end: slot.end, seg: slot.seg };
   });
 }

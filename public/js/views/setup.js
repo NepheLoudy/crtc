@@ -184,6 +184,7 @@ function rulesForm(s) {
       <div class="field" style="max-width:110px"><label>防守方初始分</label><input type="number" step="0.5" id="rs-dstart" value="${st.defenderStart}"></div>
       <div class="field" style="max-width:110px"><label>进攻方初始分</label><input type="number" step="0.5" id="rs-astart" value="${st.attackerStart}"></div>
       <div class="field" style="max-width:110px"><label>防守分上限</label><input type="number" step="0.5" id="rs-dcap" value="${st.defenderCap}"></div>
+      <div class="field" style="max-width:130px"><label>批次顺延(分)</label><input type="number" id="rs-off" value="${st.scheduleOffsetMin ?? 0}" min="0" max="600" title="所有批次整体后移 N 分钟（现场延误用，0=准点）"></div>
     </div>`;
 }
 
@@ -378,6 +379,7 @@ function bindRules(el) {
         defenderStart: Number($('#rs-dstart', el).value),
         attackerStart: Number($('#rs-astart', el).value),
         defenderCap: Number($('#rs-dcap', el).value),
+        scheduleOffsetMin: Number($('#rs-off', el).value) || 0,
       },
     });
     toast('规则参数已保存');

@@ -79,7 +79,7 @@ function pendingHtml(d, p) {
           ${can('admin') ? '<button class="btn btn-sm" id="regen-round">重新生成</button>' : ''}
         </span>
       </div>
-      <p class="hint" style="margin:0 0 10px">时间窗（第 ${Math.ceil(p.round / 2)} 天）：${windowSummary(p.round, p.pairings.length)}</p>
+      <p class="hint" style="margin:0 0 10px">时间窗（第 ${Math.ceil(p.round / 2)} 天）：${windowSummary(p.round, p.pairings.length, d.state.settings?.scheduleOffsetMin)}</p>
       ${p.warnings?.length ? `<div class="banner red">⚠ ${p.warnings.map(esc).join('<br>⚠ ')}</div>` : ''}
       ${bye}
       ${pairs}
@@ -133,7 +133,7 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
   const isAdmin = can('admin');
   const rematched = !!p.rematchOf;
   const deferred = !!p.rematchDefer;
-  const win = batchWindow(roundNo, p.board, total);
+  const win = batchWindow(roundNo, p.board, total, d.state.settings?.scheduleOffsetMin);
   const venue = venueOf(p.board, total);
   let seg;
   if (canScore) {

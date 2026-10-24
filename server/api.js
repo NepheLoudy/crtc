@@ -191,7 +191,7 @@ export function createApiRouter() {
       if (n < committedRounds(state).length) throw new Error('轮次不能小于已完成轮数');
       state.meta.totalRounds = n;
     }
-    const allowed = ['winPoints', 'drawPoints', 'lossPoints', 'byePoints', 'promoteBase', 'demoteBase', 'honorExponentMode', 'defenderStart', 'attackerStart', 'defenderCap'];
+    const allowed = ['winPoints', 'drawPoints', 'lossPoints', 'byePoints', 'promoteBase', 'demoteBase', 'honorExponentMode', 'defenderStart', 'attackerStart', 'defenderCap', 'scheduleOffsetMin'];
     for (const key of allowed) {
       if (settings?.[key] !== undefined) state.settings[key] = settings[key];
     }
