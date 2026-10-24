@@ -15,7 +15,7 @@ import {
   generateRound, submitResults, commitRound, regenerateRound,
   pendingRound, committedRounds, standings,
   addRequest, getRequest, approveReschedule, rejectRequest,
-  deferRematch, rematchNow, movePairing, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench,
+  deferRematch, rematchNow, movePairing, setRoundTimeOffset, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench,
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
@@ -252,7 +252,12 @@ export function createApiRouter() {
   }));
 
   // 手动调整局序：局号重编，批次/场地/时间随新局号重算
-  api.post('/swiss/move-pairing', wrap('调整局序', (req) => {
+  // 按轮独立顺延（管理员）：单轮批次时间整体后移
+  api.post('/swiss/time-offset', wrap('按轮顺延设置', (req) => {
+    setRoundTimeOffset(store.get(), req.body?.round, req.body?.offsetMin);
+  }));
+
+    api.post('/swiss/move-pairing', wrap('调整局序', (req) => {
     movePairing(store.get(), req.body?.board, req.body?.delta);
   }));
 

@@ -245,7 +245,7 @@ test('轮空与重复对位同轮：消解重跑级联不吞轮空者（9队回�
 });
 
 // ---------- 5.3.6 重赛 / 5.3.7 停赛与替补 ----------
-import { deferRematch, rematchNow, movePairing, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench, activeTeams, addTeams, standings as standingsT } from '../lib/engine.js';
+import { deferRematch, rematchNow, movePairing, setRoundTimeOffset, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench, activeTeams, addTeams, standings as standingsT } from '../lib/engine.js';
 
 test('5.3.6 下轮再重赛：暂记平局 + 下轮强制对位（豁免禁止重复）', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
@@ -458,6 +458,16 @@ test('名次只编给在赛队伍：被清理队不占号、排尾部', () => {
   const removed = list.find((r) => r.teamId === 't1');
   assert.equal(removed.rank, null);                       // 不占号
   assert.equal(list[list.length - 1].suspended, true);    // 排尾部
+});
+
+test('按轮独立顺延：单轮偏移不串轮、回落全局', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  setRoundTimeOffset(s, 1, 61);
+  assert.equal(s.swiss.rounds[0].timeOffset, 61);
+  setRoundTimeOffset(s, 1, ''); // 清除 → 回落全局
+  assert.equal(s.swiss.rounds[0].timeOffset, undefined);
+  assert.throws(() => setRoundTimeOffset(s, 9, 10), /轮次不存在/);
 });
 
 // ---------- 队员申请（5.3.4） ----------

@@ -59,7 +59,7 @@ export function renderMe(el, d) {
       <div class="panel corner">
         <div class="phead"><h2>本轮对阵</h2><span class="sub">ROUND ${pending ? pending.round : '—'}</span></div>
         ${pending && myPair ? (() => {
-          const win = batchWindow(pending.round, myPair.board, pending.pairings.length, d.state.settings?.scheduleOffsetMin);
+          const win = batchWindow(pending.round, myPair.board, pending.pairings.length, pending.timeOffset ?? d.state.settings?.scheduleOffsetMin);
           const venue = venueOf(myPair.board, pending.pairings.length);
           const mySide = myPair.a === teamId ? '红方' : '蓝方';
           return `<div class="pairing">

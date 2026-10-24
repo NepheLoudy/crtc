@@ -55,7 +55,8 @@ function pendingHtml(d, p) {
   const demoted = new Set(p.demoted || []);
   const resultsIn = p.pairings.every((x) => x.result);
   const canScore = can('referee');
-  const pairs = p.pairings.map((x, i) => pairRow(d, x, promoted, demoted, i, canScore, p.round, p.pairings.length)).join('');
+  const effOff = p.timeOffset ?? d.state.settings?.scheduleOffsetMin;
+  const pairs = p.pairings.map((x, i) => pairRow(d, x, promoted, demoted, i, canScore, p.round, p.pairings.length, effOff)).join('');
   const bye = p.bye ? `
     <div class="pairing" style="border-style:dashed">
       <div class="board-no">—</div>
@@ -79,10 +80,15 @@ function pendingHtml(d, p) {
           ${can('admin') ? '<button class="btn btn-sm" id="regen-round">重新生成</button>' : ''}
         </span>
       </div>
-      <p class="hint" style="margin:0 0 10px">时间窗（第 ${Math.ceil(p.round / 2)} 天）：${windowSummary(p.round, p.pairings.length, d.state.settings?.scheduleOffsetMin)}</p>
+      <p class="hint" style="margin:0 0 10px">时间窗（第 ${Math.ceil(p.round / 2)} 天）：${windowSummary(p.round, p.pairings.length, effOff)}</p>
       ${p.warnings?.length ? `<div class="banner red">⚠ ${p.warnings.map(esc).join('<br>⚠ ')}</div>` : ''}
       ${bye}
       ${pairs}
+      ${can('admin') ? `<div class="flex mt" style="margin-top:10px;gap:8px;align-items:center">
+        <span class="hint">本局顺延（按轮独立，标准时刻起后移 N 分钟）：当前 <b id="rt-cur">${p.timeOffset ?? d.state.settings?.scheduleOffsetMin ?? 0}</b> 分钟</span>
+        <input type="number" id="rt-off" value="${p.timeOffset ?? d.state.settings?.scheduleOffsetMin ?? 0}" min="0" max="600" style="max-width:90px">
+        <button class="btn btn-sm" id="rt-off-go">设置本局顺延</button>
+      </div>` : ''}
       <div class="flex mt" style="margin-top:16px">
         ${canScore
           ? `<button class="btn btn-primary btn-lg" id="commit-round" ${resultsIn ? '' : 'disabled'}>确认本轮成绩，结算 ARO</button>
@@ -126,14 +132,14 @@ function benchPanelHtml(d) {
     </table>` : '<p class="hint mt" style="margin-top:6px">候补队列为空——弃赛时该局将判对手胜。</p>'}`;
 }
 
-function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
+function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total, offsetMin) {
   const aWin = p.result === 'a';
   const bWin = p.result === 'b';
   const draw = p.result === 'draw';
   const isAdmin = can('admin');
   const rematched = !!p.rematchOf;
   const deferred = !!p.rematchDefer;
-  const win = batchWindow(roundNo, p.board, total, d.state.settings?.scheduleOffsetMin);
+  const win = batchWindow(roundNo, p.board, total, offsetMin);
   const venue = venueOf(p.board, total);
   let seg;
   if (canScore) {
@@ -340,6 +346,14 @@ function bindSwiss(el, d) {
       if (!confirm(`确认弃赛「${name}」？（条款 5.3.7）\n\n· 该队移除，后续轮次不再参与，历史成绩与 ARO 账目不变\n· ${fillNote}\n· 候补在本页底部「候补队列」录入`)) return;
       await api('POST', '/swiss/forfeit', { teamId });
       toast(sub ? `「${name}」弃赛，候补「${sub.name}」顶替出战` : `「${name}」弃赛（候补为空，判对手胜）`);
+      return;
+    }
+
+    if (btn.id === 'rt-off-go') {
+      const offsetMin = Number($('#rt-off', el).value) || 0;
+      if (!confirm(`确认本局顺延 ${offsetMin} 分钟？所有批次时间将按新偏移重算。`)) return;
+      await api('POST', '/swiss/time-offset', { round: d.pending?.round ?? (d.swissProgress.done + 1), offsetMin });
+      toast(`本局顺延已设为 ${offsetMin} 分钟`);
       return;
     }
 
