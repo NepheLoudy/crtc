@@ -139,8 +139,11 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total, offsetMin
   const isAdmin = can('admin');
   const rematched = !!p.rematchOf;
   const deferred = !!p.rematchDefer;
-  const win = batchWindow(roundNo, p.board, total, offsetMin);
-  const venue = venueOf(p.board, total);
+  const legacyBatch = ((p.board - 1) % 16) + 1;
+  const batch = p.batch ?? legacyBatch;
+  const vKey = p.venue ?? (p.board <= 16 ? 'A' : 'B');
+  const win = batchWindow(roundNo, batch, total, offsetMin);
+  const venue = { key: vKey, name: vKey === 'A' ? 'A 场' : 'B 场' };
   let seg;
   if (canScore) {
     const rmBtn = (deferred || rematched) ? '' :

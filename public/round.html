@@ -110,7 +110,8 @@
       const demoted = new Set(round.demoted || []);
       const tagOf = (id) => promoted.has(id) ? '<em class="tag">上调</em>' : demoted.has(id) ? '<em class="tag">下调</em>' : '';
       const rowHtml = (p) => {
-        const w = batchWindow(round.round, p.board, total, round.timeOffset ?? OFF());
+        const wBatch = p.batch ?? (((p.board - 1) % 16) + 1);
+        const w = batchWindow(round.round, wBatch, total, round.timeOffset ?? OFF());
         const woT = (st.state.teams.find((t) => t.id === p.a)?.suspended || st.state.teams.find((t) => t.id === p.a)?.forfeited) ? { s: '红方', k: st.state.teams.find((t) => t.id === p.a)?.suspended ? '停赛' : '弃赛' } : (st.state.teams.find((t) => t.id === p.b)?.suspended || st.state.teams.find((t) => t.id === p.b)?.forfeited) ? { s: '蓝方', k: st.state.teams.find((t) => t.id === p.b)?.suspended ? '停赛' : '弃赛' } : null;
         const tags = `${tagOf(p.a)}${tagOf(p.b)}${woT ? '<em class="tag solid">' + woT.s + woT.k + (p.walkover ? '判负' : '') + '</em>' : ''}${p.rematchOf ? '<em class="tag solid">重赛·第' + p.rematchOf + '轮</em>' : ''}${p.rematchDefer ? '<em class="tag solid">暂记平局·下轮重赛</em>' : ''}`;
         const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : p.result === 'draw' ? '½:½' : 'VS';

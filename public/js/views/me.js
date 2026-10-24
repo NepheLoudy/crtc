@@ -59,8 +59,10 @@ export function renderMe(el, d) {
       <div class="panel corner">
         <div class="phead"><h2>本轮对阵</h2><span class="sub">ROUND ${pending ? pending.round : '—'}</span></div>
         ${pending && myPair ? (() => {
-          const win = batchWindow(pending.round, myPair.board, pending.pairings.length, pending.timeOffset ?? d.state.settings?.scheduleOffsetMin);
-          const venue = venueOf(myPair.board, pending.pairings.length);
+          const mBatch = myPair.batch ?? (((myPair.board - 1) % 16) + 1);
+          const win = batchWindow(pending.round, mBatch, pending.pairings.length, pending.timeOffset ?? d.state.settings?.scheduleOffsetMin);
+          const mVenue = myPair.venue ?? (myPair.board <= 16 ? 'A' : 'B');
+          const venue = { key: mVenue, name: mVenue + ' 场' };
           const mySide = myPair.a === teamId ? '红方' : '蓝方';
           return `<div class="pairing">
             <div class="board-no"><span class="venue ${venue.key === 'A' ? 'vA' : 'vB'}">${venue.name}</span>${String(myPair.board).padStart(2, '0')}<span class="bt">${win.day} ${win.label}</span></div>

@@ -488,6 +488,35 @@ test('改判：修正已确认轮次结果，积分/ARO 派生重算', () => {
   assert.throws(() => overturnResult(s, 2, 1, 'a'), /轮次不存在|尚未确认/);
 });
 
+test('场地均衡：按局强度交替分 A/B，每批各一局，强度总量趋衡', () => {
+  const initials = Array.from({ length: 16 }, (_, i) => ['队' + (i + 1), 100 - i * 3]);
+  const s = mk(initials);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const aList = r0.pairings.filter((p) => p.venue === 'A');
+  const bList = r0.pairings.filter((p) => p.venue === 'B');
+  assert.equal(aList.length, 4);
+  assert.equal(bList.length, 4);
+  // 局号交错：奇数局=A 场、偶数局=B 场
+  r0.pairings.forEach((p) => assert.equal(p.venue, p.board % 2 === 1 ? 'A' : 'B'));
+  // 每批恰好 A/B 各一局
+  const byBatch = {};
+  for (const p of r0.pairings) {
+    byBatch[p.batch] = byBatch[p.batch] || [];
+    byBatch[p.batch].push(p.venue);
+  }
+  for (const b of Object.keys(byBatch)) {
+    assert.equal(byBatch[b].length, 2);
+    assert.ok(byBatch[b].includes('A') && byBatch[b].includes('B'), '批次' + b + '应 A/B 各一局');
+  }
+  // 强度总量趋衡：差值不超过最大单局强度
+  const str = (p) => p.aroA + p.aroB;
+  const sumA = aList.reduce((x, p) => x + str(p), 0);
+  const sumB = bList.reduce((x, p) => x + str(p), 0);
+  const maxStr = Math.max(...r0.pairings.map(str));
+  assert.ok(Math.abs(sumA - sumB) <= maxStr, '场地强度差 ' + Math.abs(sumA - sumB).toFixed(1) + ' 应 ≤ ' + maxStr.toFixed(1));
+});
+
 // ---------- 队员申请（5.3.4） ----------
 import { addRequest, approveWithdraw, approveReschedule, rejectRequest } from '../lib/engine.js';
 
