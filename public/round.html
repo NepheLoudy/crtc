@@ -126,9 +126,10 @@
       };
 
       const hasB = total > 16;
+      const half = Math.ceil(total / 2); // 均衡布局：A 场 = 局 1..half，B 场 = 局 half+1..total
       const ranges = [];
-      if (!venueFilter || venueFilter === 'A' || !hasB) ranges.push({ key: 'A', lo: 1, hi: Math.min(16, total) });
-      if (hasB && (!venueFilter || venueFilter === 'B')) ranges.push({ key: 'B', lo: 17, hi: total });
+      if (!venueFilter || venueFilter === 'A' || !hasB) ranges.push({ key: 'A', lo: 1, hi: hasB ? half : total });
+      if (hasB && (!venueFilter || venueFilter === 'B')) ranges.push({ key: 'B', lo: half + 1, hi: total });
       let byeLeft = round.bye; // 轮空行放在第一个渲染的场地区块末尾
       const sections = ranges.map(({ key, lo, hi }) => {
         const ps = round.pairings.filter((p) => p.board >= lo && p.board <= hi).sort((a, b) => a.board - b.board);
