@@ -497,8 +497,11 @@ test('场地均衡：按局强度交替分 A/B，每批各一局，强度总量�
   const bList = r0.pairings.filter((p) => p.venue === 'B');
   assert.equal(aList.length, 4);
   assert.equal(bList.length, 4);
-  // 局号交错：奇数局=A 场、偶数局=B 场
-  r0.pairings.forEach((p) => assert.equal(p.venue, p.board % 2 === 1 ? 'A' : 'B'));
+  // 局号分块：A 场整块在前（局1..4），B 场整块在后（局5..8）
+  r0.pairings.forEach((p, i) => {
+    const expectVenue = i < aList.length ? 'A' : 'B';
+    assert.equal(p.venue, expectVenue, '局' + p.board + ' 应属 ' + expectVenue);
+  });
   // 每批恰好 A/B 各一局
   const byBatch = {};
   for (const p of r0.pairings) {
