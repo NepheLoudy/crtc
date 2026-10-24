@@ -154,18 +154,22 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
   // 5.3.7 停赛键：队伍名旁，管理员专属；重赛/暂记平局场次不提供
   const susp = (id) => (isAdmin && !deferred && !rematched
     ? `<button class="btn-susp" data-susp-team="${id}" title="停赛移除该队：本轮该局判对手胜，后续轮次不再参与（条款 5.3.7）">⏸</button><button class="btn-susp ff" data-forfeit-team="${id}" title="弃赛移除该队：候补首位顶替出战本局（候补空则判对手胜）">弃</button>` : '');
-  // 判负标记文案：涉停赛队 → 停赛判负，否则弃赛判负
-  const woTag = (x) => {
-    if (!x.walkover) return '';
-    const tA = d.state.teams.find((t) => t.id === x.a);
-    const tB = d.state.teams.find((t) => t.id === x.b);
-    return `<span class="tag tag-out">${tA?.suspended || tB?.suspended ? '停赛判负' : '弃赛判负'}</span>`;
-  };
+  // 判负标记：标在被判负队伍一侧，注明红/蓝方（哪边弃赛/停赛一目了然）
+  const tA = d.state.teams.find((t) => t.id === p.a);
+  const tB = d.state.teams.find((t) => t.id === p.b);
+  const woInfo = (() => {
+    if (!p.walkover) return null;
+    const outT = (tA?.suspended || tA?.forfeited) ? { t: tA, side: 'left', sideName: '红方' }
+      : (tB?.suspended || tB?.forfeited) ? { t: tB, side: 'right', sideName: '蓝方' }
+      : null;
+    return outT ? { ...outT, label: `${outT.sideName}${outT.t.suspended ? '停赛判负' : '弃赛判负'}` } : null;
+  })();
   const flags = [
     rematched ? `<span class="tag tag-atk">重赛·第${p.rematchOf}轮</span>` : '',
     deferred ? '<span class="tag tag-bye">暂记平局·下轮重赛</span>' : '',
-    woTag(p),
-  ].join('');
+  ].filter(Boolean).join('');
+  const woTagLeft = woInfo && woInfo.side === 'left' ? ` <span class="tag tag-out">${woInfo.label}</span>` : '';
+  const woTagRight = woInfo && woInfo.side === 'right' ? `<span class="tag tag-out">${woInfo.label}</span> ` : '';
   // 手动调序键（管理员）：与相邻局互换位次，局号重编→批次/场地/时间自动重算
   const mv = (isAdmin && !p.rematchOf)
     ? `<span class="mv"><button class="btn-mv" data-move-board="${p.board}" data-delta="-1" ${p.board === 1 ? 'disabled' : ''} title="与上一局互换位次">↑</button><button class="btn-mv" data-move-board="${p.board}" data-delta="1" ${p.board === total ? 'disabled' : ''} title="与下一局互换位次">↓</button></span>` : '';
@@ -173,12 +177,12 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
     <div class="pairing row-anim ${aWin ? 'won-a' : bWin ? 'won-b' : ''}" style="animation-delay:${i * 40}ms">
       <div class="board-no"><span class="venue ${venue.key === 'A' ? 'vA' : 'vB'}">${venue.name}</span><span class="bd-line"><b>${String(p.board).padStart(2, '0')}</b>${mv}</span><span class="bt">${win.day} ${win.label}</span></div>
       <div class="side left">
-        <span class="nmrow"><i class="side-chip r">红</i><span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>${susp(p.a)}</span>
+        <span class="nmrow"><i class="side-chip r">红</i><span class="nm">${esc(teamName(d, p.a))}${promoted.has(p.a) ? ' <span class="tag tag-up">上调</span>' : ''}${demoted.has(p.a) ? ' <span class="tag tag-down">下调</span>' : ''}</span>${woTagLeft}${susp(p.a)}</span>
         <span class="aro">ARO ${fmtAro(p.aroA)}</span>
       </div>
       ${seg}
       <div class="side right">
-        <span class="nmrow"><span class="nm">${demoted.has(p.b) ? '<span class="tag tag-down">下调</span> ' : ''}${promoted.has(p.b) ? '<span class="tag tag-up">上调</span> ' : ''}${esc(teamName(d, p.b))}</span><i class="side-chip b">蓝</i>${susp(p.b)}</span>
+        <span class="nmrow">${woTagRight}<span class="nm">${demoted.has(p.b) ? '<span class="tag tag-down">下调</span> ' : ''}${promoted.has(p.b) ? '<span class="tag tag-up">上调</span> ' : ''}${esc(teamName(d, p.b))}</span><i class="side-chip b">蓝</i>${susp(p.b)}</span>
         <span class="aro">ARO ${fmtAro(p.aroB)}</span>
       </div>
       <div class="flags">${flags}</div>
@@ -224,7 +228,7 @@ function historyHtml(d) {
       const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : '½:½';
       const tA = d.state.teams.find((t) => t.id === p.a);
       const tB = d.state.teams.find((t) => t.id === p.b);
-      const wo = p.walkover ? ` <span class="tag tag-out">${tA?.suspended || tB?.suspended ? '停赛判负' : '弃赛判负'}</span>` : '';
+      const wo = p.walkover ? ` <span class="tag tag-out">${(tA?.suspended || tA?.forfeited) ? '红方' : '蓝方'}${(tA?.suspended || tB?.suspended) ? '停赛判负' : '弃赛判负'}</span>` : '';
       const tags = `${p.rematchOf ? ' <span class="tag tag-atk">重赛·第' + p.rematchOf + '轮</span>' : ''}${p.rematchDefer ? ' <span class="tag tag-bye">暂记平局·下轮重赛</span>' : ''}${wo}`;
       return `<tr>
         <td class="num dim">${String(p.board).padStart(2, '0')}</td>
