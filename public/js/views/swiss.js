@@ -151,25 +151,31 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total) {
   } else {
     seg = `<span class="vs-sep">${aWin ? '1:0' : bWin ? '0:1' : draw ? '½:½' : 'VS'}</span>`;
   }
-  // 5.3.7 停赛键：队伍名旁，管理员专属；重赛/暂记平局场次不提供
-  const susp = (id) => (isAdmin && !deferred && !rematched
-    ? `<button class="btn-susp" data-susp-team="${id}" title="停赛移除该队：本轮该局判对手胜，后续轮次不再参与（条款 5.3.7）">⏸</button><button class="btn-susp ff" data-forfeit-team="${id}" title="弃赛移除该队：候补首位顶替出战本局（候补空则判对手胜）">弃</button>` : '');
-  // 判负标记：标在被判负队伍一侧，注明红/蓝方（哪边弃赛/停赛一目了然）
+  // 5.3.7 停赛/弃赛键：队伍名旁，管理员专属；重赛/暂记平局场次、已移除队伍不提供
+  const susp = (id) => {
+    if (!isAdmin || deferred || rematched) return '';
+    const t = d.state.teams.find((x) => x.id === id);
+    if (t && (t.suspended || t.forfeited)) return ''; // 已移除的队不再给操作键
+    return `<button class="btn-susp" data-susp-team="${id}" title="停赛移除该队：本轮该局判对手胜，后续轮次不再参与（条款 5.3.7）">⏸</button><button class="btn-susp ff" data-forfeit-team="${id}" title="弃赛移除该队：候补首位顶替出战本局（候补空则判对手胜）">弃</button>`;
+  };
+  // 移除/判负标记：标在被移除队伍一侧，注明红/蓝方——
+  // 未录结果时自动判负 → 「X方停赛判负/弃赛判负」；已录结果保留 → 「X方停赛/弃赛」
   const tA = d.state.teams.find((t) => t.id === p.a);
   const tB = d.state.teams.find((t) => t.id === p.b);
-  const woInfo = (() => {
-    if (!p.walkover) return null;
+  const judge = (() => {
     const outT = (tA?.suspended || tA?.forfeited) ? { t: tA, side: 'left', sideName: '红方' }
       : (tB?.suspended || tB?.forfeited) ? { t: tB, side: 'right', sideName: '蓝方' }
       : null;
-    return outT ? { ...outT, label: `${outT.sideName}${outT.t.suspended ? '停赛判负' : '弃赛判负'}` } : null;
+    if (!outT) return null;
+    const kind = outT.t.suspended ? '停赛' : '弃赛';
+    return { ...outT, label: p.walkover ? `${outT.sideName}${kind}判负` : `${outT.sideName}${kind}` };
   })();
   const flags = [
     rematched ? `<span class="tag tag-atk">重赛·第${p.rematchOf}轮</span>` : '',
     deferred ? '<span class="tag tag-bye">暂记平局·下轮重赛</span>' : '',
   ].filter(Boolean).join('');
-  const woTagLeft = woInfo && woInfo.side === 'left' ? ` <span class="tag tag-out">${woInfo.label}</span>` : '';
-  const woTagRight = woInfo && woInfo.side === 'right' ? `<span class="tag tag-out">${woInfo.label}</span> ` : '';
+  const woTagLeft = judge && judge.side === 'left' ? ` <span class="tag tag-out">${judge.label}</span>` : '';
+  const woTagRight = judge && judge.side === 'right' ? `<span class="tag tag-out">${judge.label}</span> ` : '';
   // 手动调序键（管理员）：与相邻局互换位次，局号重编→批次/场地/时间自动重算
   const mv = (isAdmin && !p.rematchOf)
     ? `<span class="mv"><button class="btn-mv" data-move-board="${p.board}" data-delta="-1" ${p.board === 1 ? 'disabled' : ''} title="与上一局互换位次">↑</button><button class="btn-mv" data-move-board="${p.board}" data-delta="1" ${p.board === total ? 'disabled' : ''} title="与下一局互换位次">↓</button></span>` : '';
