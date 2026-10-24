@@ -422,6 +422,25 @@ test('手动调整局序：与相邻局互换、局号重编、结果随局走�
   assert.throws(() => movePairing(s, 99, 1), /局号不存在/);
 });
 
+test('积分清理：被清理队伍积分归零，历史胜平负/ARO 留档', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const p1 = r0.pairings.find((p) => p.a === 't1' || p.b === 't1');
+  submitResults(s, [{ board: p1.board, result: p1.a === 't1' ? 'a' : 'b' }]); // 甲胜 → 3 分
+  for (const p of r0.pairings) {
+    if (p.result == null) submitResults(s, [{ board: p.board, result: 'draw' }]);
+  }
+  commitRound(s);
+  suspendTeam(s, 't1');   // 确认后停赛：已录成绩留档、积分清零
+  const table = computeTable(s, 1);
+  assert.equal(table.get('t1').score, 0);        // 积分清零
+  assert.equal(table.get('t1').wins, 1);         // 胜平负留档
+  assert.equal(table.get('t1').suspended, true);
+  forfeitTeam(s, 't4');   // 已确认轮次里的弃赛：历史留档、积分清零（用全部已确认轮重算）
+  assert.equal(computeTable(s).get('t4').score, 0);
+});
+
 // ---------- 队员申请（5.3.4） ----------
 import { addRequest, approveWithdraw, approveReschedule, rejectRequest } from '../lib/engine.js';
 
