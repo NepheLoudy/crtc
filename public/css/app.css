@@ -507,3 +507,7 @@ details.hist .hist-body { padding: 4px 14px 14px; }
 .mb { margin-bottom: 14px; }
 .flex { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1; }
+
+.ot-pick { display: inline-flex; gap: 4px; }
+.ot-pick[hidden] { display: none; }
+table.grid td.ot { white-space: nowrap; }

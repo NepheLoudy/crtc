@@ -245,7 +245,7 @@ test('轮空与重复对位同轮：消解重跑级联不吞轮空者（9队回�
 });
 
 // ---------- 5.3.6 重赛 / 5.3.7 停赛与替补 ----------
-import { deferRematch, rematchNow, movePairing, setRoundTimeOffset, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench, activeTeams, addTeams, standings as standingsT } from '../lib/engine.js';
+import { deferRematch, rematchNow, movePairing, overturnResult, setRoundTimeOffset, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench, activeTeams, addTeams, standings as standingsT } from '../lib/engine.js';
 
 test('5.3.6 下轮再重赛：暂记平局 + 下轮强制对位（豁免禁止重复）', () => {
   const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
@@ -468,6 +468,24 @@ test('按轮独立顺延：单轮偏移不串轮、回落全局', () => {
   setRoundTimeOffset(s, 1, ''); // 清除 → 回落全局
   assert.equal(s.swiss.rounds[0].timeOffset, undefined);
   assert.throws(() => setRoundTimeOffset(s, 9, 10), /轮次不存在/);
+});
+
+test('改判：修正已确认轮次结果，积分/ARO 派生重算', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const p1 = r0.pairings.find((p) => p.a === 't1' || p.b === 't1');
+  submitResults(s, [{ board: p1.board, result: 'draw' }]);
+  for (const p of r0.pairings) {
+    if (p.result == null) submitResults(s, [{ board: p.board, result: 'draw' }]);
+  }
+  commitRound(s);
+  assert.equal(computeTable(s, 1).get('t1').score, 1);
+  overturnResult(s, 1, p1.board, p1.a === 't1' ? 'a' : 'b'); // 改判 t1 胜
+  const table = computeTable(s, 1);
+  assert.equal(table.get('t1').score, 3);
+  assert.equal(table.get('t1').wins, 1);
+  assert.throws(() => overturnResult(s, 2, 1, 'a'), /轮次不存在|尚未确认/);
 });
 
 // ---------- 队员申请（5.3.4） ----------

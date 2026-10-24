@@ -357,6 +357,21 @@ function bindSwiss(el, d) {
       return;
     }
 
+    // 改判：已确认轮次结果修正（管理员）
+    if (btn.dataset.otToggle) {
+      const picker = btn.parentElement.querySelector('.ot-pick');
+      if (picker) picker.hidden = !picker.hidden;
+      return;
+    }
+    if (btn.dataset.otSet) {
+      const parts = btn.dataset.otSet.split(':');
+      const resName = parts[2] === 'a' ? '红方胜' : parts[2] === 'b' ? '蓝方胜' : '平局';
+      if (!confirm(`改判第 ${parts[0]} 轮局 ${parts[1]} 为「${resName}」？积分与 ARO 自动重算。`)) return;
+      await api('POST', '/swiss/overturn', { round: Number(parts[0]), board: Number(parts[1]), result: parts[2] });
+      toast(`已改判为「${resName}」`);
+      return;
+    }
+
     if (btn.id === 'bench-add') {
       const name = $('#bench-name', el).value.trim();
       if (!name) { toast('请输入候补队伍名', true); return; }
