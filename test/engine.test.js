@@ -441,6 +441,25 @@ test('积分清理：被清理队伍积分归零，历史胜平负/ARO 留档', 
   assert.equal(computeTable(s).get('t4').score, 0);
 });
 
+test('名次只编给在赛队伍：被清理队不占号、排尾部', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const p1 = r0.pairings.find((p) => p.a === 't1' || p.b === 't1');
+  submitResults(s, [{ board: p1.board, result: p1.a === 't1' ? 'a' : 'b' }]);
+  for (const p of r0.pairings) {
+    if (p.result == null) submitResults(s, [{ board: p.board, result: 'draw' }]);
+  }
+  commitRound(s);
+  suspendTeam(s, 't1'); // 甲 3 分但被清理
+  const list = standingsT(s);
+  const active = list.filter((r) => !r.suspended);
+  assert.deepEqual(active.map((r) => r.rank), [1, 2, 3]); // 在赛名次连续不跳号
+  const removed = list.find((r) => r.teamId === 't1');
+  assert.equal(removed.rank, null);                       // 不占号
+  assert.equal(list[list.length - 1].suspended, true);    // 排尾部
+});
+
 // ---------- 队员申请（5.3.4） ----------
 import { addRequest, approveWithdraw, approveReschedule, rejectRequest } from '../lib/engine.js';
 

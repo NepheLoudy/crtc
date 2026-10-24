@@ -159,7 +159,7 @@
 
     // ---------- 排名卡 ----------
     function standingsCard() {
-      const rows = st.standings.filter((r) => !r.withdrawn && !r.suspended);
+      const rows = st.standings.filter((r) => !r.withdrawn && !r.suspended && !r.forfeited && !r.bench);
       const trs = rows.map((r) => `<tr class="${r.rank <= 8 ? 'top8' : ''}">
           <td class="rk">${String(r.rank).padStart(2, '0')}</td>
           <td><b>${esc(r.team.name)}</b></td>
