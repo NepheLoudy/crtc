@@ -15,7 +15,7 @@ import {
   generateRound, submitResults, commitRound, regenerateRound,
   pendingRound, committedRounds, standings,
   addRequest, getRequest, approveReschedule, rejectRequest,
-  deferRematch, rematchNow, movePairing, overturnResult, setRoundTimeOffset, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench,
+  deferRematch, rematchNow, movePairing, overturnResult, assignBye, setRoundTimeOffset, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench,
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
@@ -256,6 +256,11 @@ export function createApiRouter() {
   // 改判（管理员）：修正已确认轮次的对局结果
   api.post('/swiss/overturn', wrap('改判历史结果', (req) => {
     overturnResult(store.get(), req.body?.round, req.body?.board, req.body?.result);
+  }));
+
+    // 手动轮空（管理员）：为本轮未排到对局的在赛队伍指定轮空
+  api.post('/swiss/bye', wrap('手动轮空', (req) => {
+    assignBye(store.get(), req.body?.teamId);
   }));
 
     api.post('/swiss/time-offset', wrap('按轮顺延设置', (req) => {
