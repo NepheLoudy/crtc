@@ -112,21 +112,7 @@
       const rowHtml = (p) => {
         const wBatch = p.batch ?? (((p.board - 1) % 16) + 1);
         const w = batchWindow(round.round, wBatch, total, round.timeOffset ?? OFF());
-        const woT = (st.state.teams.find((t) => t.id === p.a)?.suspended || st.state.teams.find((t) => t.id === p.a)?.forfeited) ? { s: '红方', k: st.state.teams.find((t) => t.id === p.a)?.suspended ? '停赛' : '弃赛' } : (st.state.teams.find((t) => t.id === p.b)?.suspended || st.state.teams.find((t) => t.id === p.b)?.forfeited) ? { s: '蓝方', k: st.state.teams.find((t) => t.id === p.b)?.suspended ? '停赛' : '弃赛' } : null;
-        const tags = `${tagOf(p.a)}${tagOf(p.b)}${woT ? '<em class="tag solid">' + woT.s + woT.k + (p.walkover ? '判负' : '') + '</em>' : ''}${p.rematchOf ? '<em class="tag solid">重赛·第' + p.rematchOf + '轮</em>' : ''}${p.rematchDefer ? '<em class="tag solid">暂记平局·下轮重赛</em>' : ''}`;
-        const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : p.result === 'draw' ? '½:½' : 'VS';
-        return `<tr>
-          <td class="bd">${String(p.board).padStart(2, '0')}</td>
-          <td class="tw">批次${String(w.batch).padStart(2, '0')} · ${w.day}<br>${w.start}–${w.end}</td>
-          <td class="va"><b>${esc(nameOf(p.a))}</b><i>ARO ${fmtAro(p.aroA)}</i></td>
-          <td class="vs">${res}</td>
-          <td class="vb"><b>${esc(nameOf(p.b))}</b><i>ARO ${fmtAro(p.aroB)}</i></td>
-          <td class="tg">${tags}</td>
-        </tr>`;
-      };
-
-      const hasB = total > 16;
-      const half = Math.ceil(total / 2); // 均衡布局：A 场 = 局 1..half，B 场 = 局 half+1..total
+        const woT = (st.state.teams.find((t) => t.id === p.a)?.suspended || st.state.teams.find((t) => t.id === p.a)?.forfeited) && (st.state.teams.find((t) => t.id === p.b)?.suspended || st.state.teams.find((t) => t.id === p.b)?.forfeited) ? { s: '', k: '双方弃赛' } : (st.state.teams.find((t) => t.id === p.a)?.suspended || st.state.teams.find((t) => t.id === p.a)?.forfeited) ? { s: '红方', k: st.state.teams.find((t) => t.id === p.a)?.suspended ? '停赛' : '弃赛' } : (st.state.teams.find((t) => t.id === p.b)?.suspended || st.state.teams.find((t) => t.id === p.b)?.forfeited) ? { s: '蓝方', k: st.state.teams.find((t) => t.id === p.b)?.suspended ? '停赛' : '弃赛' } : null; // 均衡布局：A 场 = 局 1..half，B 场 = 局 half+1..total
       const ranges = [];
       if (!venueFilter || venueFilter === 'A' || !hasB) ranges.push({ key: 'A', lo: 1, hi: hasB ? half : total });
       if (hasB && (!venueFilter || venueFilter === 'B')) ranges.push({ key: 'B', lo: half + 1, hi: total });

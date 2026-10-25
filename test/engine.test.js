@@ -520,6 +520,29 @@ test('场地均衡：按局强度交替分 A/B，每批各一局，强度总量�
   assert.ok(Math.abs(sumA - sumB) <= maxStr, '场地强度差 ' + Math.abs(sumA - sumB).toFixed(1) + ' 应 ≤ ' + maxStr.toFixed(1));
 });
 
+test('双方弃赛：两队先后弃赛均移除，本局记平占位、无胜者', () => {
+  const s = mk([['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70]]);
+  generateRound(s);
+  const r0 = s.swiss.rounds[0];
+  const p1 = r0.pairings.find((p) => p.a === 't4' || p.b === 't4');
+  const opp = p1.a === 't4' ? p1.b : p1.a;
+  forfeitTeam(s, 't4');              // 候补空 → 判对手胜
+  assert.equal(p1.walkover, true);
+  forfeitTeam(s, opp);               // 对手也弃赛 → 双方弃赛
+  assert.equal(p1.doubleForfeit, true);
+  assert.equal(p1.result, 'draw');   // 记平占位过确认门禁
+  assert.equal(p1.walkover, false);
+  for (const p of r0.pairings) {
+    if (p.result == null) submitResults(s, [{ board: p.board, result: 'draw' }]);
+  }
+  commitRound(s);
+  const table = computeTable(s, 1);
+  assert.equal(table.get('t4').score, 0);
+  assert.equal(table.get(opp).score, 0); // 双方清零
+  assert.equal(table.get('t4').forfeited, true);
+  assert.equal(table.get(opp).forfeited, true);
+});
+
 // ---------- 队员申请（5.3.4） ----------
 import { addRequest, approveWithdraw, approveReschedule, rejectRequest } from '../lib/engine.js';
 

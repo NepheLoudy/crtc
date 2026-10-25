@@ -171,7 +171,9 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total, offsetMin
   // 未录结果时自动判负 → 「X方停赛判负/弃赛判负」；已录结果保留 → 「X方停赛/弃赛」
   const tA = d.state.teams.find((t) => t.id === p.a);
   const tB = d.state.teams.find((t) => t.id === p.b);
+  const doubleFF = !!p.doubleForfeit;
   const judge = (() => {
+    if (doubleFF) return null; // 双方弃赛：两侧各自标注，无需判负标记
     const outT = (tA?.suspended || tA?.forfeited) ? { t: tA, side: 'left', sideName: '红方' }
       : (tB?.suspended || tB?.forfeited) ? { t: tB, side: 'right', sideName: '蓝方' }
       : null;
@@ -182,6 +184,7 @@ function pairRow(d, p, promoted, demoted, i, canScore, roundNo, total, offsetMin
   const flags = [
     rematched ? `<span class="tag tag-atk">重赛·第${p.rematchOf}轮</span>` : '',
     deferred ? '<span class="tag tag-bye">暂记平局·下轮重赛</span>' : '',
+    doubleFF ? '<span class="tag tag-out">双方弃赛</span>' : '',
   ].filter(Boolean).join('');
   const woTagLeft = judge && judge.side === 'left' ? ` <span class="tag tag-out">${judge.label}</span>` : '';
   const woTagRight = judge && judge.side === 'right' ? `<span class="tag tag-out">${judge.label}</span> ` : '';
@@ -243,7 +246,7 @@ function historyHtml(d) {
       const res = p.result === 'a' ? '1:0' : p.result === 'b' ? '0:1' : '½:½';
       const tA = d.state.teams.find((t) => t.id === p.a);
       const tB = d.state.teams.find((t) => t.id === p.b);
-      const wo = p.walkover ? ` <span class="tag tag-out">${(tA?.suspended || tA?.forfeited) ? '红方' : '蓝方'}${(tA?.suspended || tB?.suspended) ? '停赛判负' : '弃赛判负'}</span>` : '';
+      const wo = p.doubleForfeit ? ` <span class="tag tag-out">双方弃赛</span>` : p.walkover ? ` <span class="tag tag-out">${(tA?.suspended || tA?.forfeited) ? '红方' : '蓝方'}${(tA?.suspended || tB?.suspended) ? '停赛判负' : '弃赛判负'}</span>` : '';
       const tags = `${p.rematchOf ? ' <span class="tag tag-atk">重赛·第' + p.rematchOf + '轮</span>' : ''}${p.rematchDefer ? ' <span class="tag tag-bye">暂记平局·下轮重赛</span>' : ''}${wo}`;
       return `<tr>
         <td class="num dim">${String(p.board).padStart(2, '0')}</td>
