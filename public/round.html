@@ -15,6 +15,9 @@
   .toolbar button.on { background: #FFD400; }
   .toolbar a:hover, .toolbar button:not(.on):hover { background: #FFD400; }
   @media print { .toolbar { display: none; } body { padding: 0; background: #fff; } }
+  /* ?clean=1：无工具栏纯卡片（headless 截图/打印用） */
+  body.clean .toolbar { display: none; }
+  body.clean { padding: 0; background: #fff; }
 </style>
 </head>
 <body>
@@ -33,6 +36,7 @@
     import { batchWindow, windowSummary, fullTimetable, venueOf } from '/js/schedule.js';
 
     const Y = '#FFD400', K = '#111111', INK = '#2b2b2b';
+    if (new URLSearchParams(location.search).has('clean')) document.body.classList.add('clean');
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const fmtAro = (x) => (Math.round(x * 100) / 100).toFixed(2);
 
