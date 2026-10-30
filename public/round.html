@@ -205,17 +205,19 @@
     document.getElementById('tab-standings').addEventListener('click', () => show('standings'));
 
     document.getElementById('btn-png').addEventListener('click', async () => {
-      const w = card.offsetWidth, h = card.offsetHeight, dpr = 2;
+      const w = card.offsetWidth, h = card.offsetHeight, dpr = 3; // A4 打印 300dpi 需 ~2480px 宽，2x 不够
+      const W = w * dpr, H = h * dpr;
       const xml = new XMLSerializer().serializeToString(card);
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`;
+      // SVG 固有尺寸直接取 2x，内容 transform 放大——引擎按目标分辨率
+      // 栅格化，避免「先 1x 位图再拉伸」导致的小字发虚
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="margin:0;padding:0;width:${w}px;height:${h}px;transform:scale(${dpr});transform-origin:top left;">${xml}</div></foreignObject></svg>`;
       const img = new Image();
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
       await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('渲染失败，请改用截图或 Ctrl+P 打印')); });
       const c = document.createElement('canvas');
-      c.width = w * dpr; c.height = h * dpr;
+      c.width = W; c.height = H;
       const ctx = c.getContext('2d');
-      ctx.scale(dpr, dpr);
-      ctx.drawImage(img, 0, 0, w, h);
+      ctx.drawImage(img, 0, 0, W, H);
       c.toBlob((b) => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(b);
