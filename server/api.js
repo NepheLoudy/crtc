@@ -15,7 +15,7 @@ import {
   generateRound, submitResults, commitRound, regenerateRound,
   pendingRound, committedRounds, standings,
   addRequest, getRequest, approveReschedule, rejectRequest,
-  deferRematch, rematchNow, movePairing, overturnResult, assignBye, setRoundTimeOffset, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench,
+  deferRematch, rematchNow, movePairing, overturnResult, addExtraMatch, assignBye, removeTeamHard, setRoundTimeOffset, suspendTeam, forfeitTeam, benchTeams, addBenchTeam, activateBench, removeBench,
 } from '../lib/engine.js';
 import {
   initKnockout, assignAttackers, playGame, recordFinalGame, knockoutRanking,
@@ -212,7 +212,8 @@ export function createApiRouter() {
   }));
 
   api.delete('/teams/:id', wrap('删除队伍', (req) => {
-    removeTeam(store.get(), req.params.id);
+    if (req.query.force === '1') removeTeamHard(store.get(), req.params.id);
+    else removeTeam(store.get(), req.params.id);
   }));
 
   api.post('/teams/:id/withdraw', wrap('队伍退赛', (req) => {
@@ -258,7 +259,12 @@ export function createApiRouter() {
     overturnResult(store.get(), req.body?.round, req.body?.board, req.body?.result);
   }));
 
-    // 手动轮空（管理员）：为本轮未排到对局的在赛队伍指定轮空
+  // 补录对局（管理员）：向待录轮次追加一局
+  api.post('/swiss/extra-match', wrap('补录对局', (req) => {
+    addExtraMatch(store.get(), req.body?.a, req.body?.b);
+  }));
+
+  // 手动轮空（管理员）：为本轮未排到对局的在赛队伍指定轮空
   api.post('/swiss/bye', wrap('手动轮空', (req) => {
     assignBye(store.get(), req.body?.teamId);
   }));
