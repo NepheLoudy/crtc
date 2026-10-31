@@ -60,6 +60,7 @@ export function knockoutSlot(n) {
   let start = FIRST;
   let lunchSkipped = false;
   for (let i = 1; i < n; i++) {
+    lunchSkipped = false;
     start += LEN + GAP;
     if (start < LUNCH[1] && start + LEN > LUNCH[0]) { start = LUNCH[1]; lunchSkipped = true; }
   }

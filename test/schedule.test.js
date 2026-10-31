@@ -43,6 +43,7 @@ test('淘汰赛节拍：09:30 起 32 分钟/场，撞午休整体顺延 13:30（
   assert.equal(knockoutSlot(6).start, '13:30'); // 12:10 起会打到 12:40 → 顺延
   assert.equal(knockoutSlot(6).end, '14:00');
   assert.ok(knockoutSlot(6).lunchSkipped);
+  assert.ok(!knockoutSlot(7).lunchSkipped); // 仅复场那一场标注
   assert.equal(knockoutSlot(7).start, '14:02'); // 午后恢复正常节拍
   assert.equal(knockoutSlot(14).end, '18:16');
 });
