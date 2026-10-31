@@ -24,7 +24,7 @@ function mkSwissDone() {
 
 const ASSIGN = { t6: 'A', t5: 'A', t4: 'A', t3: 'B', t2: 'B', t1: 'B' };
 
-test('录取与角色：ARO 最高/次高为 A/B 组防守方，初始积分 3/2', () => {
+test('录取与角色：同分全员平局时按 ARO tiebreak 定防守方，初始积分 3/2', () => {
   const k = initKnockout(mkSwissDone());
   assert.equal(k.phase, 'assign');
   assert.deepEqual(k.order, ['t8', 't7', 't6', 't5', 't4', 't3', 't2', 't1']);
@@ -33,6 +33,35 @@ test('录取与角色：ARO 最高/次高为 A/B 组防守方，初始积分 3/2
   assert.equal(k.pts.t8, 3);
   assert.equal(k.pts.t7, 3);
   for (const id of ['t6', 't5', 't4', 't3', 't2', 't1']) assert.equal(k.pts[id], 2);
+});
+
+test('录取与角色修订（10-30 曼波）：积分最高/次高为防守方（同分按 ARO），非 ARO 序', () => {
+  const s = newTournament({
+    name: '积分优先',
+    totalRounds: 1,
+    teams: [['甲', 100], ['乙', 90], ['丙', 80], ['丁', 70], ['戊', 60], ['己', 50], ['庚', 40], ['辛', 30]]
+      .map(([name, initialScore]) => ({ name, initialScore })),
+  });
+  // 手工结算一轮：t8 胜 t7、t6 胜 t5、t1 平 t2、t3 平 t4
+  // 积分：t6=3 t8=3 t1..t4=1 t5=t7=0；ARO：t2=100 t1=90 t4=80 t3=70 t6=60 t5=50 t8=40 t7=30
+  // → 防守方 = t6 与 t8（积分前二，同分按 ARO），ARO 最高的 t2/t1 只是进攻方
+  s.swiss.rounds.push({
+    round: 1, committed: true,
+    pairings: [
+      { board: 1, a: 't1', b: 't2', aroA: 100, aroB: 90, result: 'draw', autoLoss: false },
+      { board: 2, a: 't3', b: 't4', aroA: 80, aroB: 70, result: 'draw', autoLoss: false },
+      { board: 3, a: 't5', b: 't6', aroA: 60, aroB: 50, result: 'b', autoLoss: false },
+      { board: 4, a: 't7', b: 't8', aroA: 40, aroB: 30, result: 'b', autoLoss: false },
+    ],
+  });
+  const k = initKnockout(s);
+  assert.deepEqual(k.order.slice(0, 2), ['t6', 't8']);
+  assert.equal(k.groups.A.defender, 't6');
+  assert.equal(k.groups.B.defender, 't8');
+  assert.equal(k.pts.t6, 3);
+  assert.equal(k.pts.t8, 3);
+  assert.equal(k.pts.t2, 2); // ARO 最高者不是防守方
+  assert.equal(k.pts.t1, 2);
 });
 
 test('志愿分配：队列按 ARO 序编成；防守方连续守住：进攻方 2→1→0 淘汰，防守分 3→3.5→4 封顶', () => {

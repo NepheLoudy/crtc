@@ -309,6 +309,15 @@ export function createApiRouter() {
     initKnockout(store.get());
   }));
 
+  // 重置淘汰赛（管理员）：仅限尚未开赛（志愿分配阶段）——录取/编组有误时重来
+  api.delete('/knockout', wrap('重置淘汰赛', () => {
+    const state = store.get();
+    if (state.knockout && state.knockout.phase !== 'assign') {
+      throw new Error('淘汰赛已开赛，不可重置');
+    }
+    state.knockout = null;
+  }));
+
   api.post('/knockout/assign', wrap('编组进攻队列', (req) => {
     assignAttackers(store.get(), req.body?.assignment || {});
   }));

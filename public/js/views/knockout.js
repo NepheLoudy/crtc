@@ -52,12 +52,12 @@ function preKnockoutHtml(d) {
       <td>${esc(r.team.name)}</td>
       <td class="num"><b>${fmtPts(r.score)}</b></td>
       <td class="num">${fmtAro(r.aro)}</td>
-      <td class="dim">${i < 2 ? '防守方（ARO 前二）' : '进攻方'}</td>
+      <td class="dim">${i < 2 ? '防守方（积分前二）' : '进攻方'}</td>
     </tr>`).join('');
   return `
     <div class="panel corner">
       <div class="phead"><h2>8 强录取</h2><span class="sub">QUALIFICATION · 条款 5.2</span></div>
-      <div class="banner">录取前 8 名后：ARO 最高与次高自动成为 A / B 组防守方（初始 ${d.state.settings.defenderStart} 分，上限 ${d.state.settings.defenderCap}）；其余 6 队按 ARO 顺序志愿选择进攻组别（初始 ${d.state.settings.attackerStart} 分）。</div>
+      <div class="banner">录取前 8 名后：积分最高与次高自动成为 A / B 组防守方（初始 ${d.state.settings.defenderStart} 分，上限 ${d.state.settings.defenderCap}）；其余 6 队按 ARO 顺序志愿选择进攻组别（初始 ${d.state.settings.attackerStart} 分）。</div>
       <table class="grid">
         <thead><tr><th>名次</th><th>队伍</th><th class="num">积分</th><th class="num">ARO</th><th>角色</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -96,7 +96,7 @@ function assignHtml(d, k) {
     const members = attackers.filter((id) => assignMap[id] === g);
     return `
       <div class="panel corner">
-        <div class="phead"><h2>${g} 组</h2><span class="sub">${g === 'A' ? 'ARO 最高' : 'ARO 次高'} 为防守方</span></div>
+        <div class="phead"><h2>${g} 组</h2><span class="sub">${g === 'A' ? '积分最高' : '积分次高'} 为防守方</span></div>
         <div class="fighter def">
           <span class="role">◆ 防守方 DEFENDER</span>
           <span class="nm">${esc(nm(def))}</span>
