@@ -2,8 +2,14 @@
 import { api } from '../api.js';
 import { can } from '../main.js';
 import { esc, fmtAro, fmtPts, teamName, $ } from '../ui.js';
+import { knockoutSlot } from '../schedule.js';
 
 let assignMap = {}; // 志愿分配暂存 teamId → 'A'|'B'
+
+// 组内已完结场数（log 里每场结束带 match+group），当前场 = 完结数 + 1
+function groupMatchNo(k, g) {
+  return k.log.filter((l) => l.match && l.group === g).length + 1;
+}
 
 export function renderKnockout(el, d) {
   if (!d.hasTournament) {
@@ -159,6 +165,21 @@ function battleHtml(d, k) {
     <div class="ko-grid">${consoles}</div>
     ${finalCard}
     <div class="panel corner" style="margin-top:18px">
+      <div class="phead"><h2>今日节拍</h2><span class="sub">RHYTHM · 每场 BO3 计 30 分钟 · 间隔 2 分钟 · 09:30 起</span></div>
+      <table class="grid">
+        <thead><tr><th>槽位</th><th>时间窗</th><th>安排</th></tr></thead>
+        <tbody>${Array.from({ length: 14 }, (_, i) => {
+          const s = knockoutSlot(i + 1);
+          return `<tr>
+            <td class="num">${String(s.no).padStart(2, '0')}</td>
+            <td class="num">${s.start}–${s.end}</td>
+            <td class="dim">${s.lunchSkipped ? 'A 场 · B 场 并行（午休后首场）' : 'A 场 · B 场 并行'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+      <p class="hint">A / B 两组同槽并行，槽位按组内场数各自推进；12:30–13:30 午休自动避开（13:30 恢复）。车轮战进度随赛况滚动，本表为理论节拍；决赛于场上仅剩两支防守方后顺势进行。</p>
+    </div>
+    <div class="panel corner" style="margin-top:18px">
       <div class="phead"><h2>战况日志</h2><span class="sub">BATTLE LOG</span></div>
       <div class="log-feed">${[...k.log].reverse().map(logLine).join('') || '<p class="hint">暂无记录</p>'}</div>
     </div>`;
@@ -183,9 +204,9 @@ export function consoleHtml(d, k, g, ro = false) {
         <span class="pts">${fmtPts(k.pts[cur.defender])}<small> 分</small></span>
       </div>
       <div class="mid">
-        <span class="match-no">第 ${k.matchCounter + 1} 场</span>
+        <span class="match-no">第 ${groupMatchNo(k, g)} 场</span>
         <div class="pips">${cur.games.map((x) => `<i class="pip ${x === 'defender' ? 'd' : x === 'attacker' ? 'a' : 'x'}" title="${x === 'defender' ? '防守方胜' : x === 'attacker' ? '进攻方胜' : '平局'}"></i>`).join('') || '<i class="pip"></i>'}</div>
-        <span class="match-no dim">BO3 · 先胜2局</span>
+        <span class="match-no dim">BO3 · 先胜2局 · 计划 ${knockoutSlot(groupMatchNo(k, g)).start}–${knockoutSlot(groupMatchNo(k, g)).end}</span>
       </div>
       <div class="fighter atk">
         <span class="role">▲ 进攻方 ${ro ? '' : kick(cur.attacker)}</span>
