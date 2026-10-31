@@ -309,12 +309,13 @@ export function createApiRouter() {
     initKnockout(store.get());
   }));
 
-  // 重置淘汰赛（管理员）：仅限尚未开赛（志愿分配阶段）——录取/编组有误时重来
+  // 重置淘汰赛（管理员）：尚未产生任何场次时可用（志愿分配或已编组未开打）
+  // ——录取/编组有误时重来；一旦录过局即锁定
   api.delete('/knockout', wrap('重置淘汰赛', () => {
     const state = store.get();
-    if (state.knockout && state.knockout.phase !== 'assign') {
-      throw new Error('淘汰赛已开赛，不可重置');
-    }
+    const k = state.knockout;
+    const started = k && (k.matchCounter > 0 || k.log.some((l) => l.match));
+    if (started) throw new Error('淘汰赛已产生场次，不可重置');
     state.knockout = null;
   }));
 
