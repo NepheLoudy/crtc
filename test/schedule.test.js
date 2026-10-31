@@ -35,17 +35,17 @@ test('全局顺延：+20 分钟后批01=09:20、批16=14:55–15:04，summary �
   assert.ok(windowSummary(1, 32, 20).includes('已整体顺延 20 分钟'));
 });
 
-test('淘汰赛节拍：09:00 起 29 分钟/场（BO3 计 27+歇 2），撞午休整体顺延 13:30（10-30 曼波定，30→25→27 / 9:30→9:00）', () => {
+test('淘汰赛节拍：09:00 起 30 分钟/场无间隔，撞午休整体顺延 13:30（10-30 曼波定，30→25→27→30 / 取消间隔）', () => {
   assert.equal(knockoutSlot(1).start, '09:00');
-  assert.equal(knockoutSlot(1).end, '09:27');
-  assert.equal(knockoutSlot(7).start, '11:54'); // 12:21 止，午休前最后一场
-  assert.equal(knockoutSlot(7).end, '12:21');
+  assert.equal(knockoutSlot(1).end, '09:30');
+  assert.equal(knockoutSlot(7).start, '12:00'); // 12:30 止压线，午休前最后一场
+  assert.equal(knockoutSlot(7).end, '12:30');
   assert.ok(!knockoutSlot(7).lunchSkipped);
-  assert.equal(knockoutSlot(8).start, '13:30'); // 12:23 起会打到 12:50 → 顺延
-  assert.equal(knockoutSlot(8).end, '13:57');
+  assert.equal(knockoutSlot(8).start, '13:30'); // 12:30 起会打进午休 → 顺延
+  assert.equal(knockoutSlot(8).end, '14:00');
   assert.ok(knockoutSlot(8).lunchSkipped);
   assert.ok(!knockoutSlot(9).lunchSkipped); // 仅复场那一场标注
-  assert.equal(knockoutSlot(9).start, '13:59'); // 午后恢复正常节拍
-  assert.equal(knockoutSlot(14).start, '16:24');
-  assert.equal(knockoutSlot(14).end, '16:51');
+  assert.equal(knockoutSlot(9).start, '14:00'); // 午后恢复正常节拍
+  assert.equal(knockoutSlot(14).start, '16:30');
+  assert.equal(knockoutSlot(14).end, '17:00');
 });

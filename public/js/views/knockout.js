@@ -165,7 +165,7 @@ function battleHtml(d, k) {
     <div class="ko-grid">${consoles}</div>
     ${finalCard}
     <div class="panel corner" style="margin-top:18px">
-      <div class="phead"><h2>今日节拍</h2><span class="sub">RHYTHM · 每场 BO3 计 27 分钟 · 间隔 2 分钟 · 09:00 起</span></div>
+      <div class="phead"><h2>今日节拍</h2><span class="sub">RHYTHM · 每场 BO3 计 30 分钟 · 无间隔 · 09:00 起</span></div>
       <table class="grid">
         <thead><tr><th>槽位</th><th>时间窗</th><th>安排</th></tr></thead>
         <tbody>${Array.from({ length: 14 }, (_, i) => {
