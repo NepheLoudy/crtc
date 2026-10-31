@@ -52,11 +52,11 @@ export function fullTimetable(round, offsetMin = 0) {
   });
 }
 
-// 淘汰赛节拍（10-30 曼波定）：09:30 起，每场 BO3 计 30 分钟 + 场间 2 分钟，
+// 淘汰赛节拍（10-30 曼波定，同日修订 30→25 分钟）：09:30 起，每场 BO3 计 25 分钟 + 场间 2 分钟，
 // A / B 两组同槽并行；与午休 12:30–13:30 相交的场次整体顺延到 13:30 开。
 // n = 组内第几场（每组各自计数，两组槽位一一对应）
 export function knockoutSlot(n) {
-  const LEN = 30, GAP = 2, FIRST = 9 * 60 + 30, LUNCH = [12 * 60 + 30, 13 * 60 + 30];
+  const LEN = 25, GAP = 2, FIRST = 9 * 60 + 30, LUNCH = [12 * 60 + 30, 13 * 60 + 30];
   let start = FIRST;
   let lunchSkipped = false;
   for (let i = 1; i < n; i++) {
